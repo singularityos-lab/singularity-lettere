@@ -1,0 +1,170 @@
+{
+    "schema-id": "dev.sinty.lettere",
+    "settings": [
+        {
+            "key": "sync-interval",
+            "label": "Check Every (minutes)",
+            "subtitle": "The inbox is also watched continuously when the server supports it",
+            "type": "int",
+            "widget": "spin",
+            "min": 1,
+            "max": 240
+        },
+        {
+            "key": "notify-new-mail",
+            "label": "Notify About New Mail",
+            "subtitle": "Show a notification when messages arrive in an inbox",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "send-delay",
+            "label": "Undo Send (seconds)",
+            "subtitle": "Time to take a message back after pressing Send, 0 sends at once",
+            "type": "int",
+            "widget": "spin",
+            "min": 0,
+            "max": 60
+        },
+        {
+            "key": "conversations",
+            "label": "Group Into Conversations",
+            "subtitle": "Show replies together with the message they answer",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "load-remote-images",
+            "label": "Always Load Images",
+            "subtitle": "Senders can use images from the web to know when you read their message",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "work-offline",
+            "label": "Work Offline",
+            "subtitle": "Read the mail saved on this computer without connecting",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "cache-limit",
+            "label": "Offline Storage (MB)",
+            "subtitle": "Message content kept on this computer for reading offline",
+            "type": "int",
+            "widget": "spin",
+            "min": 50,
+            "max": 100000
+        },
+        {
+            "key": "focused-inbox",
+            "label": "Focused Inbox",
+            "subtitle": "Sort messages from people you know into Focused and the rest into Other",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "notify-focused-only",
+            "label": "Notify Only for Focused",
+            "subtitle": "Stay quiet about newsletters and other bulk mail",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "dark-messages",
+            "label": "Dark Messages",
+            "subtitle": "Show messages in dark colors with the dark style",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "reading-pane",
+            "label": "Reading Pane",
+            "subtitle": "Where the selected message opens",
+            "type": "string",
+            "widget": "combo",
+            "options": [
+                {
+                    "id": "right",
+                    "label": "On the Right"
+                },
+                {
+                    "id": "bottom",
+                    "label": "Below the List"
+                },
+                {
+                    "id": "off",
+                    "label": "In a Window"
+                }
+            ]
+        },
+        {
+            "key": "mark-read-delay",
+            "label": "Mark as Read After (seconds)",
+            "subtitle": "0 marks a message as read as soon as it opens",
+            "type": "int",
+            "widget": "spin",
+            "min": 0,
+            "max": 60
+        },
+        {
+            "key": "junk-filter",
+            "label": "Junk Filter",
+            "subtitle": "Learn from what you mark as spam and move new junk by itself",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "read-receipts",
+            "label": "Read Receipts",
+            "subtitle": "When a sender asks to know that you read their message",
+            "type": "string",
+            "widget": "combo",
+            "options": [
+                {
+                    "id": "ask",
+                    "label": "Ask Each Time"
+                },
+                {
+                    "id": "always",
+                    "label": "Always Send"
+                },
+                {
+                    "id": "never",
+                    "label": "Never Send"
+                }
+            ]
+        },
+        {
+            "key": "autosave-drafts",
+            "label": "Save Drafts Automatically",
+            "subtitle": "Every two minutes while writing",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "spell-check",
+            "label": "Check Spelling",
+            "subtitle": "Underline misspelled words while writing",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "crypto-preference",
+            "label": "Preferred Encryption",
+            "subtitle": "Used when an account has both a certificate and an OpenPGP key",
+            "type": "string",
+            "widget": "combo",
+            "options": [
+                {
+                    "id": "smime",
+                    "label": "S/MIME"
+                },
+                {
+                    "id": "openpgp",
+                    "label": "OpenPGP"
+                }
+            ]
+        }
+    ]
+}

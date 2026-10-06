@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="dev.sinty.lettere" path="/dev/sinty/lettere/">
+    <key name="sync-interval" type="i">
+      <range min="1" max="240"/>
+      <default>10</default>
+      <summary>Sync interval</summary>
+      <description>Minutes between checks of every folder. The inbox is also watched continuously when the server supports it.</description>
+    </key>
+    <key name="notify-new-mail" type="b">
+      <default>true</default>
+      <summary>Notify about new mail</summary>
+      <description>Show a notification when new messages arrive in an inbox.</description>
+    </key>
+    <key name="send-delay" type="i">
+      <range min="0" max="60"/>
+      <default>10</default>
+      <summary>Undo send delay</summary>
+      <description>Seconds a message waits before it is sent, so it can still be taken back.</description>
+    </key>
+    <key name="conversations" type="b">
+      <default>true</default>
+      <summary>Group messages into conversations</summary>
+      <description>Show replies together with the message they answer.</description>
+    </key>
+    <key name="load-remote-images" type="b">
+      <default>false</default>
+      <summary>Load images from the web</summary>
+      <description>Load remote images in HTML messages without asking. Senders can use them to know when you read a message.</description>
+    </key>
+    <key name="image-senders" type="as">
+      <default>[]</default>
+      <summary>Senders allowed to show images</summary>
+      <description>Addresses whose messages always load remote images.</description>
+    </key>
+    <key name="work-offline" type="b">
+      <default>false</default>
+      <summary>Work offline</summary>
+      <description>Do not connect to mail servers. Changes are sent when going back online.</description>
+    </key>
+    <key name="cache-limit" type="i">
+      <range min="50" max="100000"/>
+      <default>2048</default>
+      <summary>Offline storage limit</summary>
+      <description>Megabytes of message content kept on this computer for reading offline.</description>
+    </key>
+    <key name="list-width" type="i">
+      <default>380</default>
+      <summary>Message list width</summary>
+      <description>Width of the message list in pixels.</description>
+    </key>
+    <key name="dark-messages" type="b">
+      <default>true</default>
+      <summary>Dark messages</summary>
+      <description>Show messages with dark colors when the desktop uses the dark style.</description>
+    </key>
+    <key name="reading-pane" type="s">
+      <default>'right'</default>
+      <summary>Reading pane</summary>
+      <description>Where messages open: right, bottom or off.</description>
+    </key>
+    <key name="focused-inbox" type="b">
+      <default>false</default>
+      <summary>Focused inbox</summary>
+      <description>Split the inbox into Focused and Other.</description>
+    </key>
+    <key name="focus-view" type="s">
+      <default>'focused'</default>
+      <summary>Focused view</summary>
+      <description>Which part of the inbox is shown.</description>
+    </key>
+    <key name="notify-focused-only" type="b">
+      <default>true</default>
+      <summary>Notify only for Focused</summary>
+      <description>Do not notify about messages sorted into Other.</description>
+    </key>
+    <key name="saved-searches" type="as">
+      <default>[]</default>
+      <summary>Saved searches</summary>
+      <description>Searches shown under Favorites, as name and query separated by a tab.</description>
+    </key>
+    <key name="sort" type="s">
+      <default>'date'</default>
+      <summary>Sort order</summary>
+      <description>How the message list is sorted.</description>
+    </key>
+    <key name="sort-ascending" type="b">
+      <default>false</default>
+      <summary>Oldest first</summary>
+      <description>Sort the message list in ascending order.</description>
+    </key>
+    <key name="filter" type="s">
+      <default>'all'</default>
+      <summary>List filter</summary>
+      <description>Which messages the list shows.</description>
+    </key>
+    <key name="blocked-senders" type="as">
+      <default>[]</default>
+      <summary>Blocked senders</summary>
+      <description>Addresses or domains whose mail goes to Junk.</description>
+    </key>
+    <key name="ignored-threads" type="as">
+      <default>[]</default>
+      <summary>Ignored conversations</summary>
+      <description>Conversations whose new messages go to Trash.</description>
+    </key>
+    <key name="junk-filter" type="b">
+      <default>true</default>
+      <summary>Junk filter</summary>
+      <description>Learn from the messages marked as spam and move new junk automatically.</description>
+    </key>
+    <key name="read-receipts" type="s">
+      <default>'ask'</default>
+      <summary>Read receipts</summary>
+      <description>Answer requests for read receipts: ask, always or never.</description>
+    </key>
+    <key name="mark-read-delay" type="i">
+      <default>0</default>
+      <summary>Mark as read after</summary>
+      <description>Seconds a message is shown before it is marked as read.</description>
+    </key>
+    <key name="autosave-drafts" type="b">
+      <default>true</default>
+      <summary>Save drafts automatically</summary>
+      <description>Save the message being written every two minutes.</description>
+    </key>
+    <key name="spell-check" type="b">
+      <default>true</default>
+      <summary>Check spelling</summary>
+      <description>Underline misspelled words while writing.</description>
+    </key>
+    <key name="crypto-preference" type="s">
+      <default>'smime'</default>
+      <summary>Preferred encryption</summary>
+      <description>Use S/MIME or OpenPGP when an account has both.</description>
+    </key>
+    <key name="list-height" type="i">
+      <default>300</default>
+      <summary>Message list height</summary>
+      <description>Height of the message list when the reading pane is below.</description>
+    </key>
+  </schema>
+</schemalist>

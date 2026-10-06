@@ -1,0 +1,43 @@
+From: =?UTF-8?B?R2l1bGlhIFJvc3Np?= <giulia@example.org>
+To: "Bianchi, Marco" <marco@example.org>, ana@example.com (Ana Souza)
+Cc: undisclosed-recipients:;
+Subject: =?UTF-8?Q?Report_trimestrale_=E2=82=AC?=
+ =?UTF-8?Q?_e_budget?=
+Date: Tue, 1 Jul 2003 10:52:37 +0200
+Message-ID: <abc123@example.org>
+In-Reply-To: <root1@example.org>
+References: <root1@example.org>
+ <mid2@example.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="outer"
+
+This is a multi-part message.
+--outer
+Content-Type: multipart/alternative; boundary=inner
+
+--inner
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+Ciao Marco, il caff=E8 =E8 pronto.=
+ Soft break.
+--inner
+Content-Type: text/html; charset=utf-8
+
+<p>Ciao <b>Marco</b></p><img src="https://tracker.example.com/p.gif"><img src="cid:logo@x">
+--inner--
+--outer
+Content-Type: image/png; name="logo.png"
+Content-ID: <logo@x>
+Content-Disposition: inline
+Content-Transfer-Encoding: base64
+
+iVBORyBmYWtl
+--outer
+Content-Type: application/pdf
+Content-Disposition: attachment;
+ filename*=utf-8''rapporto%20%C3%A8.pdf
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQgdGVzdA==
+--outer--

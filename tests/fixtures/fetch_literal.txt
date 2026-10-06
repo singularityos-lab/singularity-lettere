@@ -1,0 +1,5 @@
+* 12 FETCH (UID 34 FLAGS (\Seen \Flagged) INTERNALDATE "17-Jul-1996 02:44:25 -0700" RFC822.SIZE 4286 MODSEQ (12121231000) BODY[HEADER.FIELDS (FROM SUBJECT)] {58}
+From: Giulia Rossi <giulia@example.org>
+Subject: Ciao
+
+)

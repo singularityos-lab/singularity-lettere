@@ -1,0 +1,17 @@
+[Desktop Entry]
+Name=Lettere
+Comment=Read and write email
+Exec=singularity-lettere %U
+Icon=dev.sinty.lettere
+Terminal=false
+Type=Application
+Categories=Network;Email;
+Keywords=mail;email;imap;smtp;inbox;message;letter;
+MimeType=message/rfc822;x-scheme-handler/mailto;
+StartupWMClass=dev.sinty.lettere
+StartupNotify=true
+Actions=compose;
+
+[Desktop Action compose]
+Name=New Message
+Exec=singularity-lettere mailto:

@@ -1,0 +1,12 @@
+BEGIN:VCARD
+VERSION:4.0
+FN:Giulia Rossi
+EMAIL;TYPE=work:giulia@example.org
+item1.EMAIL:g.rossi@example.net
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+FN:Ana
+  Souza
+EMAIL:ana@example.com
+END:VCARD

@@ -1,0 +1,12 @@
+src/app.vala
+src/window.vala
+src/rows.vala
+src/reader.vala
+src/mail_print.vala
+src/composer.vala
+src/account_dialog.vala
+src/mime.vala
+src/imap.vala
+src/smtp.vala
+src/sync.vala
+src/store.vala
