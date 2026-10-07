@@ -1808,6 +1808,10 @@ namespace Singularity.Apps.Lettere {
                     show_toast (_("A read receipt was sent"));
                     break;
                 case "receipt-ignore": app.ignore_receipt (m); break;
+                case "add-contact":
+                    add_contact ();
+                    reader.refresh ();
+                    break;
             }
         }
 

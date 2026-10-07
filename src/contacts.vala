@@ -29,6 +29,7 @@ namespace Singularity.Apps.Lettere {
             public string name = "";
             public string uid = "";
             public string kind = "";
+            public string photo = "";
             public Gee.ArrayList<string> emails = new Gee.ArrayList<string> ();
             public Gee.ArrayList<string> categories = new Gee.ArrayList<string> ();
             public Gee.ArrayList<string> members = new Gee.ArrayList<string> ();
@@ -65,6 +66,13 @@ namespace Singularity.Apps.Lettere {
                     case "KIND":
                     case "X-ADDRESSBOOKSERVER-KIND": cur.kind = value.down (); break;
                     case "EMAIL": if (value.contains ("@")) cur.emails.add (value); break;
+                    case "PHOTO":
+                        if (raw.has_prefix ("data:image/")) cur.photo = raw;
+                        else if (key.contains ("ENCODING=B") || key.contains ("ENCODING=BASE64")) {
+                            string mime = key.contains ("PNG") ? "image/png" : (key.contains ("WEBP") ? "image/webp" : "image/jpeg");
+                            cur.photo = "data:%s;base64,%s".printf (mime, raw.replace (" ", ""));
+                        }
+                        break;
                     case "CATEGORIES":
                         foreach (string c in raw.split (",")) {
                             string t = c.replace ("\\;", ";").strip ();
@@ -86,10 +94,20 @@ namespace Singularity.Apps.Lettere {
             return list;
         }
 
+        public Gee.HashMap<string, string> photos = new Gee.HashMap<string, string> ();
+
+        public string? photo_for (string email) {
+            load ();
+            return photos[email.down ()];
+        }
+
         private void take (string text, Gee.List<Card> all) {
             foreach (var c in cards (text)) {
                 all.add (c);
-                foreach (string e in c.emails) entries.add (new Address (c.name, e));
+                foreach (string e in c.emails) {
+                    entries.add (new Address (c.name, e));
+                    if (c.photo != "") photos[e.down ()] = c.photo;
+                }
             }
         }
 
@@ -128,6 +146,7 @@ namespace Singularity.Apps.Lettere {
             loaded_at = now;
             entries.clear ();
             groups.clear ();
+            photos.clear ();
             var all = new Gee.ArrayList<Card> ();
             foreach (string dir in dirs) {
                 try {

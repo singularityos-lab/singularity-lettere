@@ -659,8 +659,12 @@ namespace Singularity.Apps.Lettere {
             sb.append ("<section class=\"msg%s\" data-id=\"%s\">".printf (is_current ? " current" : "", m.id.to_string ()));
             sb.append ("<details%s><summary>".printf (open ? " open" : ""));
             string who = m.sender_display != "" ? m.sender_display : _("Unknown Sender");
+            string? face = m.sender_email != "" ? app.contacts.photo_for (m.sender_email) : null;
+            if (face != null) sb.append ("<img class=\"face\" alt=\"\" src=\"%s\">".printf (Html.attr (face)));
+            else sb.append ("<span class=\"face mono\" aria-hidden=\"true\">%s</span>".printf (Html.escape (who.get_char (0).toupper ().to_string ())));
             sb.append ("<span class=\"who\">%s</span>".printf (Html.escape (who)));
             if (m.sender_name != "" && m.sender_email != "") sb.append ("<span class=\"addr\">%s</span>".printf (Html.escape (m.sender_email)));
+            if (m.sender_email != "" && !app.contacts.knows (m.sender_email)) sb.append ("<a class=\"add\" href=\"lettere:add-contact/%s\">%s</a>".printf (m.id.to_string (), Html.escape (_("Add to Contacts"))));
             sb.append ("<span class=\"when\">%s</span>".printf (Html.escape (format_full (m.date))));
             sb.append ("<span class=\"pv\">%s</span>".printf (Html.escape (m.preview)));
             sb.append ("</summary>");
@@ -698,6 +702,10 @@ namespace Singularity.Apps.Lettere {
             return sb.str;
         }
 
+        public void refresh () {
+            render_all ();
+        }
+
         private void render_all () {
             bool dark = app.dark_reading ();
             bool allow = true;
@@ -715,9 +723,10 @@ namespace Singularity.Apps.Lettere {
             sb.append ("section.msg{margin:0;padding:10px 16px 6px 16px;border-bottom:1px solid %s;background:%s;}".printf (line, card));
             sb.append ("section.msg.current{box-shadow:inset 3px 0 0 #3584e4;}");
             sb.append ("summary{cursor:pointer;list-style:none;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:4px 0;}summary::-webkit-details-marker{display:none;}");
+            sb.append (".face{width:28px;height:28px;border-radius:50%;object-fit:cover;align-self:center;flex:none;}.face.mono{display:inline-flex;align-items:center;justify-content:center;background:#3584e4;color:#fff;font-weight:700;font-size:13px;}");
             sb.append (".who{font-weight:700;}.addr,.when,.meta{color:%s;font-size:12px;}.when{margin-left:auto;}".printf (dim));
             sb.append ("details[open] .pv{display:none;}.pv{color:%s;font-size:12px;flex-basis:100%%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}".printf (dim));
-            sb.append (".acts{margin:4px 0 6px 0;display:flex;gap:14px;font-size:12px;}.acts a,.atts a{color:#3584e4;text-decoration:none;}.atts{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0;font-size:12px;}");
+            sb.append (".acts{margin:4px 0 6px 0;display:flex;gap:14px;font-size:12px;}.acts a,.atts a,a.add{color:#3584e4;text-decoration:none;}a.add{font-size:12px;}.atts{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0;font-size:12px;}");
             sb.append ("iframe{border:0;width:100%%;min-height:40px;display:block;background:%s;border-radius:8px;}.err{color:%s;padding:10px 0;}".printf (dark ? "#1f1f22" : "#ffffff", dim));
             sb.append ("</style></head><body>");
             foreach (var l in loaded) sb.append (card_html (l, dark));
