@@ -9,6 +9,7 @@ namespace Singularity.Apps.Lettere {
         private Stack stack;
         private GLib.ListStore model;
         private MultiSelection selection;
+        private int64 selection_anchor;
         private ListView list;
         private Stack list_stack;
         private Box list_empty;
@@ -213,6 +214,32 @@ namespace Singularity.Apps.Lettere {
                 row.add_controller (click);
                 var dbl = new GestureClick ();
                 dbl.button = 1;
+                dbl.propagation_phase = PropagationPhase.CAPTURE;
+                dbl.pressed.connect ((n, x, y) => {
+                    var m = item.item as MessageInfo;
+                    if (m == null || n != 1) return;
+                    var state = dbl.get_current_event_state ();
+                    bool ctrl = (state & Gdk.ModifierType.CONTROL_MASK) != 0;
+                    if ((state & Gdk.ModifierType.SHIFT_MASK) != 0) {
+                        uint anchor = item.position;
+                        for (uint i = 0; i < model.get_n_items (); i++) {
+                            if (((MessageInfo) model.get_item (i)).id == selection_anchor) {
+                                anchor = i;
+                                break;
+                            }
+                        }
+                        uint first = uint.min (anchor, item.position);
+                        selection.select_range (first, uint.max (anchor, item.position) - first + 1, !ctrl);
+                        dbl.set_state (EventSequenceState.CLAIMED);
+                    } else {
+                        selection_anchor = m.id;
+                        if (ctrl) {
+                            if (selection.is_selected (item.position)) selection.unselect_item (item.position);
+                            else selection.select_item (item.position, false);
+                            dbl.set_state (EventSequenceState.CLAIMED);
+                        }
+                    }
+                });
                 dbl.released.connect ((n, x, y) => {
                     if (n == 2) {
                         var m = item.item as MessageInfo;
@@ -758,6 +785,10 @@ namespace Singularity.Apps.Lettere {
                 }
                 if (composing || stack.visible_child_name != "mail") return false;
                 switch (keyval) {
+                    case Gdk.Key.Delete:
+                    case Gdk.Key.KP_Delete:
+                        delete_selected ();
+                        return true;
                     case Gdk.Key.j:
                         move_selection (1);
                         return true;

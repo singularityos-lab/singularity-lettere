@@ -49,17 +49,16 @@ namespace Singularity.Apps.Lettere {
         }
 
         private async void op_lock () {
-            while (locked) {
+            if (locked) {
                 lock_waiters.offer (new LockWaiter (op_lock.callback));
                 yield;
-            }
-            locked = true;
+            } else locked = true;
         }
 
         private void op_unlock () {
-            locked = false;
             var w = lock_waiters.poll ();
             if (w != null) Idle.add ((owned) w.cb);
+            else locked = false;
         }
 
         public AccountSync (Account account, Store store) {
@@ -320,9 +319,19 @@ namespace Singularity.Apps.Lettere {
             yield op_lock ();
             try {
                 yield backend.sync_folder (f, notify, fresh);
-                if (prefetch > 0) yield backend.prefetch (f, prefetch);
             } finally {
                 op_unlock ();
+            }
+            if (prefetch > 0) yield prefetch_bodies (f, prefetch);
+        }
+
+        private async void prefetch_bodies (Folder f, int limit) throws Error {
+            foreach (var m in store.missing_body_messages (f.id, backend.max_body_size, limit)) {
+                if (stopped || work_offline) return;
+                try {
+                    yield load_body (m);
+                } catch (MailError.SERVER e) {
+                }
             }
         }
 
@@ -379,12 +388,7 @@ namespace Singularity.Apps.Lettere {
                 data_changed ();
                 foreach (var f in folders) {
                     if (f.local && !(backend is LocalBackend)) continue;
-                    yield op_lock ();
-                    try {
-                        yield backend.prefetch (f, f.role == "inbox" ? 200 : 60);
-                    } finally {
-                        op_unlock ();
-                    }
+                    yield prefetch_bodies (f, f.role == "inbox" ? 200 : 60);
                 }
                 first_sync_done = true;
                 state = SyncState.IDLE;
@@ -448,11 +452,13 @@ namespace Singularity.Apps.Lettere {
             if (f == null) return null;
             yield ensure ();
             uint8[]? data = null;
-            yield op_lock ();
+            bool serial = !backend.concurrent_bodies;
+            if (serial) yield op_lock ();
             try {
-                data = yield backend.fetch_body (f, m);
+                data = store.body (m.id);
+                if (data == null) data = yield backend.fetch_body (f, m);
             } finally {
-                op_unlock ();
+                if (serial) op_unlock ();
             }
             if (data != null) {
                 store.set_body (m.id, data);

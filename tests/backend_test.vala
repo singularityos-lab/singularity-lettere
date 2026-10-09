@@ -268,6 +268,7 @@ async void run_pop (Store store, int port) {
 }
 
 async void run_all (Store store) {
+    yield run_body_priority (store);
     yield run_graph_boundary (store);
     yield run_protocol (store, "graph", base_url + "/graph/v1.0/", true);
     yield run_graph_shared (store);
@@ -276,6 +277,99 @@ async void run_all (Store store) {
     yield run_protocol (store, "jmap", base_url + "/.well-known/jmap", false);
     yield run_protocol (store, "ews", base_url + "/EWS/Exchange.asmx", false);
     yield run_pop (store, int.parse (base_url.substring (base_url.last_index_of_char (':') + 1)) + 1);
+}
+
+class SlowBodyBackend : LocalBackend {
+    public signal void first_body ();
+    public Gee.ArrayList<int64?> fetched = new Gee.ArrayList<int64?> ();
+
+    public SlowBodyBackend (AccountSync owner) {
+        base (owner);
+    }
+
+    public override async uint8[]? fetch_body (Folder f, MessageInfo m) throws Error {
+        fetched.add (m.id);
+        if (fetched.size == 1) first_body ();
+        Timeout.add (20, () => { fetch_body.callback (); return Source.REMOVE; });
+        yield;
+        return "Subject: Downloaded\r\n\r\nMessage body\r\n".data;
+    }
+}
+
+async void run_body_priority (Store store) {
+    var a = new Account ();
+    a.id = "body-priority";
+    a.protocol = "local";
+    var f = store.local_folder (a.id, "Inbox", "Inbox", "inbox");
+    int64 target = 0;
+    for (int i = 0; i < 12; i++) {
+        int64 id = store.insert_message (f, i + 1, 0, 0, "Subject: Waiting\r\n\r\n".data, 1700000000 + i);
+        if (i == 0) target = id;
+    }
+    var s = new AccountSync (a, store);
+    var backend = new SlowBodyBackend (s);
+    s.backend = backend;
+    bool downloaded = false;
+    backend.first_body.connect (() => {
+        s.load_body.begin (store.message (target), (o, res) => {
+            try {
+                downloaded = s.load_body.end (res) != null;
+            } catch (Error e) {
+                check (false, "foreground body: " + e.message);
+            }
+        });
+    });
+    yield s.sync_all ();
+    check (downloaded && backend.fetched.size == 12, "foreground body and background downloads complete");
+    check (backend.fetched.size > 1 && backend.fetched[1] == target, "selected message downloads before the background backlog");
+    s.stop ();
+    yield run_body_during_headers (store);
+}
+
+class SlowHeaderBackend : SlowBodyBackend {
+    public signal void headers_started ();
+    public bool headers_finished;
+
+    public SlowHeaderBackend (AccountSync owner) {
+        base (owner);
+    }
+
+    public override bool concurrent_bodies {
+        get { return true; }
+    }
+
+    public override async void sync_folder (Folder f, bool notify, Gee.List<MessageInfo> fresh) throws Error {
+        if (f.role != "inbox") return;
+        headers_started ();
+        Timeout.add (100, () => { sync_folder.callback (); return Source.REMOVE; });
+        yield;
+        headers_finished = true;
+    }
+}
+
+async void run_body_during_headers (Store store) {
+    var a = new Account ();
+    a.id = "header-priority";
+    a.protocol = "local";
+    var f = store.local_folder (a.id, "Inbox", "Inbox", "inbox");
+    int64 id = store.insert_message (f, 1, 0, 0, "Subject: Waiting\r\n\r\n".data, 1700000000);
+    var s = new AccountSync (a, store);
+    var backend = new SlowHeaderBackend (s);
+    s.backend = backend;
+    bool downloaded = false;
+    backend.headers_started.connect (() => {
+        s.load_body.begin (store.message (id), (o, res) => {
+            try {
+                downloaded = s.load_body.end (res) != null;
+                check (!backend.headers_finished, "stateless body fetch does not wait for header sync");
+            } catch (Error e) {
+                check (false, "foreground body during header sync: " + e.message);
+            }
+        });
+    });
+    yield s.sync_all ();
+    check (downloaded, "foreground body completes during header sync");
+    s.stop ();
 }
 
 async void run_graph_boundary (Store store) {

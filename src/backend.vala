@@ -48,6 +48,9 @@ namespace Singularity.Apps.Lettere {
         public abstract async void sync_folder (Folder f, bool notify, Gee.List<MessageInfo> fresh) throws Error;
         public abstract async void prefetch (Folder f, int limit) throws Error;
         public abstract async uint8[]? fetch_body (Folder f, MessageInfo m) throws Error;
+        public virtual bool concurrent_bodies {
+            get { return false; }
+        }
         public abstract async void set_flags (Folder f, string ids, int flag, bool on) throws Error;
         public abstract async void set_keywords (Folder f, string ids, string[] add, string[] remove) throws Error;
         public abstract async void move (Folder f, string ids, Folder dest) throws Error;

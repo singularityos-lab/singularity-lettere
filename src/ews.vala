@@ -1,6 +1,9 @@
 namespace Singularity.Apps.Lettere {
 
     public class EwsBackend : MailBackend {
+        public override bool concurrent_bodies {
+            get { return true; }
+        }
         private unowned AccountSync owner;
         private ApiClient api;
         private bool connected;

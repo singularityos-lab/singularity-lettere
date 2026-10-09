@@ -491,13 +491,14 @@ namespace Singularity.Apps.Lettere {
                 show_failure (target.error);
                 return;
             }
+            focus_message (target, true);
+            render_all ();
             foreach (var l in loaded) {
                 if (l == target) continue;
                 yield load_one (l);
                 if (my != serial) return;
+                render_all ();
             }
-            focus_message (target, true);
-            render_all ();
         }
 
         public void show_file (MimeMessage msg, string title) {
