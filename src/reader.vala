@@ -572,7 +572,9 @@ namespace Singularity.Apps.Lettere {
                 n++;
             }
             if (current.flagged) {
-                string label = current.completed ? _("Completed") : (current.due > 0 ? _("Follow Up by %s").printf (format_when (current.due)) : _("Flagged for Follow Up"));
+                string label = _("Flagged for Follow Up");
+                if (current.completed) label = _("Completed");
+                else if (current.due > 0) label = _("Follow Up by %s").printf (format_when (current.due));
                 chips.append (chip (label, current.completed ? "#2ec27e" : "#e66100"));
                 n++;
             }

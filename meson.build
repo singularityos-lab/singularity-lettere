@@ -80,6 +80,8 @@ executable('singularity-lettere',
     'src/window.vala',
     'src/test_script.vala',
     'src/mail_service.vala',
+    'src/notifications.vala',
+    'src/summary.vala',
     'src/app.vala',
   ),
   dependencies: core_deps + [gtk_dep, webkit_dep, poppler_dep, unix_print_dep, gst_dep, libsingularity_dep],
@@ -106,6 +108,10 @@ install_data('data/dev.sinty.lettere.gschema.xml',
 
 install_data('data/dev.sinty.lettere.json',
   install_dir: get_option('datadir') / 'singularity' / 'app-settings'
+)
+
+install_data('data/capabilities/dev.sinty.Lettere.Mail.ini',
+  install_dir: get_option('datadir') / 'singularity' / 'capabilities'
 )
 
 install_data('data/share-targets/dev.sinty.lettere.send.ini',
@@ -138,3 +144,12 @@ crypto_test = executable('lettere-crypto-test',
   dependencies: core_deps,
 )
 test('lettere-crypto', crypto_test, timeout: 180)
+
+notification_test = executable('lettere-notification-test',
+  files('src/notifications.vala', 'tests/notification_test.vala'),
+  dependencies: [dependency('gio-2.0'), gee_dep, gtk_dep, gst_dep, libsingularity_dep],
+)
+test('lettere-notifications', find_program('dbus-run-session'),
+  args: ['--', notification_test, meson.current_source_dir() / 'data'],
+  env: ['GSETTINGS_BACKEND=memory'],
+)

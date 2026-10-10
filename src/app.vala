@@ -22,6 +22,10 @@ namespace Singularity.Apps.Lettere {
         public signal void outbox_changed ();
         public signal void outbox_result (int64 id, string error);
         private MailService? mail_service;
+        private MailNotifications notifications;
+        private DailySummary? summary;
+        private bool startup_summary_shown;
+        private uint startup_summary_timer;
         public signal void toast (string text, string? action_label, owned ToastAction? action);
 
         public delegate void ToastAction ();
@@ -51,6 +55,8 @@ namespace Singularity.Apps.Lettere {
             base.startup ();
             Environment.set_application_name ("Lettere");
             settings = new GLib.Settings ("dev.sinty.lettere");
+            notifications = new MailNotifications (this, settings);
+            Singularity.FocusStatus.get_default ();
             try {
                 store = new Store (Path.build_filename (data_dir (), "cache.db"));
             } catch (Error e) {
@@ -123,6 +129,9 @@ namespace Singularity.Apps.Lettere {
                 w.show_unified ();
             });
             add_action (show_inbox);
+            var daily = new SimpleAction ("daily-summary", null);
+            daily.activate.connect (() => show_daily_summary (false));
+            add_action (daily);
             var compose_files = new SimpleAction ("compose-files", new VariantType ("as"));
             compose_files.activate.connect ((v) => compose_shared.begin (v.dup_strv (), null));
             add_action (compose_files);
@@ -147,6 +156,8 @@ namespace Singularity.Apps.Lettere {
         }
 
         protected override void shutdown () {
+            if (startup_summary_timer != 0) Source.remove (startup_summary_timer);
+            notifications.stop ();
             foreach (var s in syncs.values) s.stop ();
             base.shutdown ();
         }
@@ -175,6 +186,7 @@ namespace Singularity.Apps.Lettere {
             menu.append_submenu (_("Edit"), edit);
 
             var view = new GLib.Menu ();
+            view.append_section (null, section ({ { _("Daily Summary"), "app.daily-summary" } }));
             view.append_section (null, section ({ { _("All Inboxes"), "win.unified" }, { _("Outbox"), "win.outbox" } }));
             folder_section = new GLib.Menu ();
             view.append_section (null, folder_section);
@@ -348,25 +360,22 @@ namespace Singularity.Apps.Lettere {
         private void notify_new (Account a, Gee.List<MessageInfo> list) {
             if (!settings.get_boolean ("notify-new-mail") || list.size == 0) return;
             new_mail_arrived (list);
-            Notification n;
+            string title;
+            string body;
             if (list.size == 1) {
                 var m = list[0];
-                n = new Notification (m.sender_display);
-                n.set_body (m.subject != "" ? m.subject : _("(No Subject)"));
-                n.set_default_action_and_target_value ("app.show-message", new Variant.int64 (m.id));
+                title = m.sender_display;
+                body = m.subject != "" ? m.subject : _("(No Subject)");
             } else {
-                n = new Notification (ngettext ("%d New Message", "%d New Messages", list.size).printf (list.size));
+                title = ngettext ("%d New Message", "%d New Messages", list.size).printf (list.size);
                 var senders = new Gee.ArrayList<string> ();
                 foreach (var m in list) {
                     if (!senders.contains (m.sender_display)) senders.add (m.sender_display);
                     if (senders.size >= 3) break;
                 }
-                n.set_body (_("From %s").printf (string.joinv (", ", senders.to_array ())));
-                n.set_default_action ("app.show-inbox");
+                body = _("From %s").printf (string.joinv (", ", senders.to_array ()));
             }
-            n.set_icon (new ThemedIcon ("dev.sinty.lettere"));
-            n.set_category ("email.arrived");
-            send_notification ("new-mail-" + a.id, n);
+            notifications.send.begin (a.id, title, body, list.size == 1 ? list[0].id : 0);
         }
 
         public int64 queue_message (Account a, MessageBuilder b, SentHook? hook, int64 send_at = 0) {
@@ -463,7 +472,26 @@ namespace Singularity.Apps.Lettere {
 
         public override void activate () {
             main_window ().present ();
+            if (!startup_summary_shown) {
+                startup_summary_shown = true;
+                if (settings.get_boolean ("startup-summary")) {
+                    startup_summary_timer = Timeout.add (300, () => {
+                        startup_summary_timer = 0;
+                        if (settings.get_boolean ("startup-summary")) show_daily_summary (true);
+                        return Source.REMOVE;
+                    });
+                }
+            }
             TestScript.maybe_run (this);
+        }
+
+        private void show_daily_summary (bool sound) {
+            if (summary == null) {
+                summary = new DailySummary (this);
+                ((Gtk.Widget) summary).unrealize.connect (() => summary = null);
+            }
+            summary.present ();
+            if (sound) notifications.play_summary_sound ();
         }
 
         public override void open (File[] files, string hint) {

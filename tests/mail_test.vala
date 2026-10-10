@@ -814,6 +814,31 @@ void test_pst_roundtrip () {
 }
 
 
+void test_unread_inboxes () {
+    try {
+        string dir = DirUtils.make_tmp ("lettere-summary-XXXXXX");
+        var store = new Store (Path.build_filename (dir, "cache.db"));
+        var inbox = store.upsert_folder ("work", "INBOX", "INBOX", "inbox", "/");
+        var other = store.upsert_folder ("personal", "INBOX", "INBOX", "inbox", "/");
+        var sent = store.upsert_folder ("work", "Sent", "Sent", "sent", "/");
+        uint8[] raw = "From: Test <test@example.org>\r\nSubject: Summary\r\n\r\n".data;
+        int64 first = store.insert_message (inbox, 1, 0, raw.length, raw, 0);
+        store.insert_message (other, 1, 0, raw.length, raw, 0);
+        store.insert_message (sent, 1, 0, raw.length, raw, 0);
+        store.insert_message (inbox, 2, MessageFlags.SEEN, raw.length, raw, 0);
+        store.insert_message (inbox, 3, MessageFlags.DELETED, raw.length, raw, 0);
+        store.insert_message (inbox, 4, MessageFlags.JUNK, raw.length, raw, 0);
+        store.insert_message (inbox, 5, MessageFlags.DRAFT, raw.length, raw, 0);
+        assert (store.unread_inboxes () == 2);
+        store.set_flags_by_id (first, MessageFlags.SEEN);
+        assert (store.unread_inboxes () == 1);
+        store.remove_account ("personal");
+        assert (store.unread_inboxes () == 0);
+    } catch (Error e) {
+        error (e.message);
+    }
+}
+
 void test_contact_groups () {
     try {
         string dir = DirUtils.make_tmp ("lettere-contacts-XXXXXX");
@@ -858,6 +883,7 @@ int main (string[] args) {
     Test.add_func ("/store/sqlite", test_store);
     Test.add_func ("/search/query", test_search_query);
     Test.add_func ("/store/query", test_store_query);
+    Test.add_func ("/store/unread-inboxes", test_unread_inboxes);
     Test.add_func ("/threading/conversation-ids", test_conversation_ids);
     Test.add_func ("/sieve/scripts", test_sieve);
     Test.add_func ("/rules/evaluate", test_rules);

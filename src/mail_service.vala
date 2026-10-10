@@ -51,6 +51,16 @@ namespace Singularity.Apps.Lettere {
             connection = null;
         }
 
+        [DBus (signature = "a(xsxb)")]
+        public Variant recent_messages_with (string[] emails, int limit) throws DBusError, IOError {
+            if (app.store == null) return new Variant.array (new VariantType ("(xsxb)"), {});
+            return app.store.recent_with (emails, limit);
+        }
+
+        public void show_message (int64 id) throws DBusError, IOError {
+            app.activate_action ("show-message", new Variant.int64 (id));
+        }
+
         public HashTable<string, Variant>[] accounts () throws DBusError, IOError {
             HashTable<string, Variant>[] list = {};
             foreach (var a in sending_accounts ()) {

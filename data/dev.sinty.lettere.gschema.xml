@@ -12,6 +12,16 @@
       <summary>Notify about new mail</summary>
       <description>Show a notification when new messages arrive in an inbox.</description>
     </key>
+    <key name="notification-sound" type="b">
+      <default>true</default>
+      <summary>Play notification sounds</summary>
+      <description>Play a sound for new mail and the startup summary, unless desktop notification sounds are silenced.</description>
+    </key>
+    <key name="startup-summary" type="b">
+      <default>true</default>
+      <summary>Show the daily summary at startup</summary>
+      <description>Show unread inbox messages, today's appointments, due tasks and follow-ups when opening Lettere.</description>
+    </key>
     <key name="send-delay" type="i">
       <range min="0" max="60"/>
       <default>10</default>

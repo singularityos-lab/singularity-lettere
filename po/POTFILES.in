@@ -1,4 +1,6 @@
 src/app.vala
+src/summary.vala
+src/notifications.vala
 src/window.vala
 src/rows.vala
 src/reader.vala

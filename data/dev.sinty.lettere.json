@@ -18,6 +18,20 @@
             "widget": "toggle"
         },
         {
+            "key": "notification-sound",
+            "label": "Play Notification Sounds",
+            "subtitle": "Play a sound for new mail and the startup summary, respecting desktop quiet mode",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
+            "key": "startup-summary",
+            "label": "Daily Summary at Startup",
+            "subtitle": "Show unread mail, today's appointments, due tasks and follow-ups",
+            "type": "boolean",
+            "widget": "toggle"
+        },
+        {
             "key": "send-delay",
             "label": "Undo Send (seconds)",
             "subtitle": "Time to take a message back after pressing Send, 0 sends at once",

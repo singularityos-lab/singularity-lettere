@@ -377,6 +377,39 @@ namespace Singularity.Apps.Lettere {
 
         private const string FOLDER_COLS = "id, account, path, name, role, delim, uidvalidity, uidnext, modseq, sync_state, parent, favorite, local, shared";
 
+        public Variant recent_with (string[] emails, int limit) {
+            var result = new VariantBuilder (new VariantType ("a(xsxb)"));
+            if (emails.length == 0) return result.end ();
+            var where = new StringBuilder ();
+            for (int i = 0; i < emails.length; i++) {
+                if (i > 0) where.append (" OR ");
+                where.append ("lower(sender_email) = ? OR lower(to_list) LIKE ? OR lower(cc_list) LIKE ?");
+            }
+            string sql = "SELECT id, subject, date, sender_email FROM messages WHERE %s ORDER BY date DESC LIMIT %d".printf (where.str, int.max (1, limit) * 3);
+            Sqlite.Statement st;
+            if (db.prepare_v2 (sql, -1, out st) != Sqlite.OK) return result.end ();
+            int n = 1;
+            foreach (string e in emails) {
+                string low = e.down ();
+                st.bind_text (n++, low);
+                st.bind_text (n++, "%" + low + "%");
+                st.bind_text (n++, "%" + low + "%");
+            }
+            var seen = new Gee.HashSet<string> ();
+            int count = 0;
+            while (st.step () == Sqlite.ROW && count < limit) {
+                string subject = st.column_text (1) ?? "";
+                int64 date = st.column_int64 (2);
+                string sender = (st.column_text (3) ?? "").down ();
+                bool from_them = false;
+                foreach (string e in emails) if (e.down () == sender) from_them = true;
+                if (!seen.add (subject + date.to_string ())) continue;
+                result.add ("(xsxb)", st.column_int64 (0), subject, date, from_them);
+                count++;
+            }
+            return result.end ();
+        }
+
         public Gee.ArrayList<Folder> folders (string account) {
             var list = new Gee.ArrayList<Folder> ();
             var st = prepare ("SELECT " + FOLDER_COLS + " FROM folders WHERE account = ?");
@@ -1261,6 +1294,12 @@ namespace Singularity.Apps.Lettere {
             st.bind_int64 (1, folder_id);
             while (st.step () == Sqlite.ROW) list.add (read_message (st));
             return list;
+        }
+
+        public int unread_inboxes () {
+            var st = prepare ("SELECT COUNT(*) FROM messages m JOIN folders f ON f.id = m.folder WHERE f.role = 'inbox' AND (m.flags & ?) = 0");
+            st.bind_int (1, MessageFlags.SEEN | MessageFlags.DELETED | MessageFlags.JUNK | MessageFlags.DRAFT);
+            return st.step () == Sqlite.ROW ? st.column_int (0) : 0;
         }
 
         public Gee.ArrayList<MessageInfo> due_messages (int64 before) {
