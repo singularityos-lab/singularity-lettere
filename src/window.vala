@@ -1533,7 +1533,11 @@ namespace Singularity.Apps.Lettere {
             bool busy = false;
             foreach (var s in app.syncs.values) if (s.busy) busy = true;
             var f = source_folder ();
-            string key = query != "" ? "q:" + query : busy ? "busy" : f != null ? "f:%s:%s".printf (f.id.to_string (), f.display_name) : "none:" + source + app.settings.get_string ("filter");
+            string key;
+            if (query != "") key = "q:" + query;
+            else if (busy) key = "busy";
+            else if (f != null) key = "f:%s:%s".printf (f.id.to_string (), f.display_name);
+            else key = "none:" + source + app.settings.get_string ("filter");
             if (key != empty_key || list_empty.get_first_child () == null) {
                 empty_key = key;
                 var old = list_empty.get_first_child ();
