@@ -407,7 +407,7 @@ namespace Singularity.Apps.Lettere.Html {
     public string plain_body (string text) {
         var sb = new StringBuilder ("<div class=\"lettere-plain\">");
         int depth = 0;
-        foreach (string raw in text.replace ("\r\n", "\n").split ("\n")) {
+        foreach (string raw in text.replace ("\r\n", "\n").chomp ().split ("\n")) {
             int q = 0;
             string line = raw;
             while (line.has_prefix (">")) {
@@ -431,7 +431,11 @@ namespace Singularity.Apps.Lettere.Html {
         return sb.str;
     }
 
-    public const string DARK_STYLE = "<style>html{filter:invert(1) hue-rotate(180deg);background:#ffffff !important;}img,video,picture,svg,[style*=\"background-image\"]{filter:invert(1) hue-rotate(180deg);}</style>";
+    public const string FOLD_STYLE = "<style>.lq{margin:6px 0;}.lq-t{display:none;}.lq-b{max-height:5.4em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 15%,transparent);mask-image:linear-gradient(#000 15%,transparent);}.lq-t:checked~.lq-b{max-height:none;-webkit-mask-image:none;mask-image:none;}.lq-l{display:inline-block;margin-top:2px;padding:0 12px;border-radius:999px;background:rgba(0,0,0,0.07);color:#55555c;font-size:13px;font-weight:700;line-height:18px;letter-spacing:2px;cursor:pointer;user-select:none;-webkit-user-select:none;}.lq-l:hover{background:rgba(0,0,0,0.12);}blockquote{border-left-color:#d6d6da;}</style>";
+
+    public const string DARK_STYLE = "<style>html{filter:invert(1) hue-rotate(180deg);}html,body{background:transparent !important;}img,video,picture,svg,[style*=\"background-image\"]{filter:invert(1) hue-rotate(180deg);}</style>";
+
+    public const string LIGHT_STYLE = "<style>html{background:transparent !important;}</style>";
 
     public string message_document (MimeMessage msg, bool allow_remote, bool dark, string override_text = "") {
         string body;
@@ -439,7 +443,7 @@ namespace Singularity.Apps.Lettere.Html {
         else if (msg.text_html != "") body = msg.text_html;
         else body = plain_body (msg.text_plain);
         string doc = document (body, msg.inline_parts, allow_remote);
-        string extra = "<style>.lettere-plain{white-space:normal;font-family:sans-serif;}body{margin:4px 2px;}</style>" + (dark ? DARK_STYLE : "");
+        string extra = "<style>.lettere-plain{white-space:normal;font-family:sans-serif;}body{margin:4px 2px;}</style>" + FOLD_STYLE + (dark ? DARK_STYLE : LIGHT_STYLE);
         return doc.replace ("</head>", extra + "</head>");
     }
 

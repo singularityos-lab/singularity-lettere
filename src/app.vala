@@ -973,7 +973,7 @@ namespace Singularity.Apps.Lettere {
 
 .lettere-paper {
     border-radius: 14px;
-    background-color: #ffffff;
+    background-color: transparent;
     margin: 0 16px 12px 16px;
 }
 

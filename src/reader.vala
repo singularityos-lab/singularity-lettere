@@ -73,7 +73,8 @@ namespace Singularity.Apps.Lettere {
             subject.add_css_class ("lettere-subject");
             subject.margin_start = 20;
             subject.margin_end = 20;
-            subject.margin_bottom = 6;
+            subject.margin_top = 14;
+            subject.margin_bottom = 8;
             append (subject);
 
             chips = new FlowBox ();
@@ -205,10 +206,10 @@ namespace Singularity.Apps.Lettere {
                 menu.append (new WebKit.ContextMenuItem.from_stock_action (WebKit.ContextMenuAction.SELECT_ALL));
                 return false;
             });
-            app.style_changed.connect (() => {
-                if (loaded.size > 0 || file_mode) render_all ();
-                sync_paper ();
-            });
+            app.style_changed.connect (restyle);
+            var style = Singularity.Style.StyleManager.get_default ();
+            style.recolored.connect (restyle);
+            style.notify["accent-hex"].connect (restyle);
             paper = new Box (Orientation.VERTICAL, 0);
             paper.add_css_class ("lettere-paper");
             paper.overflow = Overflow.HIDDEN;
@@ -281,15 +282,26 @@ namespace Singularity.Apps.Lettere {
             insert_action_group ("reader", group);
         }
 
-        private void sync_paper () {
-            if (app.dark_reading ()) {
-                paper.add_css_class ("dark");
-                web.set_background_color ({ 0.12f, 0.12f, 0.13f, 1 });
-            } else {
-                paper.remove_css_class ("dark");
-                web.set_background_color ({ 1, 1, 1, 1 });
-            }
+        private void restyle () {
+            if (loaded.size > 0 || file_mode) render_all ();
+            sync_paper ();
         }
+
+        private void sync_paper () {
+            web.set_background_color ({ 0, 0, 0, 0 });
+        }
+
+        private Gdk.RGBA theme_color (string name, string fallback) {
+            var c = Gdk.RGBA ();
+            if (!get_style_context ().lookup_color (name, out c)) c.parse (fallback);
+            return c;
+        }
+
+        private static string css (Gdk.RGBA c, double alpha = 1) {
+            uint a = (uint) Math.round (c.alpha * alpha * 1000);
+            return "rgba(%u,%u,%u,%u.%03u)".printf ((uint) Math.round (c.red * 255), (uint) Math.round (c.green * 255), (uint) Math.round (c.blue * 255), a / 1000, a % 1000);
+        }
+
 
         private Gee.ArrayList<MessageInfo> infos () {
             var list = new Gee.ArrayList<MessageInfo> ();
@@ -352,13 +364,67 @@ namespace Singularity.Apps.Lettere {
         }
 
         private const string FIT_SCRIPT = """
-(function () {
+(function (LABEL) {
+  var QUOTES = 'blockquote,.gmail_quote,.yahoo_quoted,.protonmail_quote,[type=cite],.lq-x';
+  function wrap (d, e, n) {
+    var box = d.createElement ('div');
+    box.className = 'lq';
+    var t = d.createElement ('input');
+    t.type = 'checkbox';
+    t.className = 'lq-t';
+    t.id = 'lq' + n;
+    var b = d.createElement ('div');
+    b.className = 'lq-b';
+    var l = d.createElement ('label');
+    l.className = 'lq-l';
+    l.htmlFor = t.id;
+    l.title = LABEL;
+    l.textContent = '\u2022\u2022\u2022';
+    e.parentNode.insertBefore (box, e);
+    b.appendChild (e);
+    box.appendChild (t);
+    box.appendChild (b);
+    box.appendChild (l);
+  }
+  function fold (d) {
+    if (!d.body || d.body.dataset.folded) return;
+    d.body.dataset.folded = '1';
+    var mark = d.querySelector ('#divRplyFwdMsg,#appendonsend,.moz-forward-container');
+    if (mark && mark.parentNode) {
+      var x = d.createElement ('div');
+      x.className = 'lq-x';
+      var prev = mark.previousElementSibling;
+      if (prev && prev.tagName == 'HR') mark = prev;
+      mark.parentNode.insertBefore (x, mark);
+      for (var n = mark; n; ) { var next = n.nextSibling; x.appendChild (n); n = next; }
+    }
+    var n = 0;
+    Array.prototype.slice.call (d.querySelectorAll (QUOTES)).forEach (function (e) {
+      if (e.parentElement && e.parentElement.closest (QUOTES)) return;
+      if (e.getBoundingClientRect ().height < 90) return;
+      wrap (d, e, n++);
+    });
+  }
   function fit (f) {
     try {
       var d = f.contentDocument;
       if (!d || !d.documentElement) return;
-      var h = Math.max (d.documentElement.scrollHeight, d.body ? d.body.scrollHeight : 0);
-      f.style.height = (h + 6) + 'px';
+      fold (d);
+      var h = d.documentElement.scrollHeight;
+      if (d.body) {
+        var cs = d.defaultView.getComputedStyle (d.body);
+        h = d.body.scrollHeight + parseFloat (cs.marginTop) + parseFloat (cs.marginBottom);
+      }
+      h = Math.ceil (h) + 4;
+      if (Math.abs (h - (parseFloat (f.style.height) || 0)) > 4) f.style.height = h + 'px';
+      if (d.body && !f.lettereObserved && window.ResizeObserver) {
+        f.lettereObserved = true;
+        new ResizeObserver (function () { fit (f); }).observe (d.body);
+      }
+      if (!f.lettereToggles) {
+        f.lettereToggles = true;
+        d.addEventListener ('change', function () { fit (f); }, true);
+      }
     } catch (e) {}
   }
   document.querySelectorAll ('iframe').forEach (function (f) {
@@ -384,8 +450,13 @@ namespace Singularity.Apps.Lettere {
   var cur = document.querySelector ('section.current');
   if (cur && !window.lettereScrolled) { window.lettereScrolled = true; cur.scrollIntoView (); }
   return 1;
-}) ();
+}) (%s);
 """;
+
+        private string fit_script () {
+            string label = _("Show or hide quoted text").replace ("\\", "\\\\").replace ("'", "\\'");
+            return FIT_SCRIPT.replace ("}) (%s);", "}) ('%s');".printf (label));
+        }
 
         private void probe () {
             if (Environment.get_variable ("LETTERE_TEST_SCRIPT") == null) return;
@@ -401,14 +472,14 @@ namespace Singularity.Apps.Lettere {
 
         private void fit () {
             probe ();
-            web.evaluate_javascript.begin (FIT_SCRIPT, -1, "lettere", null, null, (o, r) => {
+            web.evaluate_javascript.begin (fit_script (), -1, "lettere", null, null, (o, r) => {
                 try {
                     web.evaluate_javascript.end (r);
                 } catch (Error e) {
                 }
             });
             Timeout.add (400, () => {
-                web.evaluate_javascript.begin (FIT_SCRIPT, -1, "lettere", null, null, null);
+                web.evaluate_javascript.begin (fit_script (), -1, "lettere", null, null, null);
                 return Source.REMOVE;
             });
         }
@@ -714,23 +785,25 @@ namespace Singularity.Apps.Lettere {
             bool allow = true;
             foreach (var l in loaded) if (!allow_images (l)) allow = false;
             images_allowed = allow;
-            string fg = dark ? "#e8e8ea" : "#1d1d1f";
-            string dim = dark ? "#a0a0a8" : "#6a6a72";
-            string card = dark ? "#26262a" : "#ffffff";
-            string line = dark ? "#3a3a40" : "#e4e4e8";
-            string bg = dark ? "#1f1f22" : "#ffffff";
+            var fg_c = theme_color ("window_fg_color", "#ffffff");
+            string fg = css (fg_c);
+            string card = css (theme_color ("card_bg_color", "rgba(255,255,255,0.08)"));
+            string dim = css (fg_c, 0.62);
+            string line = css (fg_c, 0.1);
+            string accent = css (theme_color ("accent_color", "#3584e4"));
+            string accent_bg = css (theme_color ("accent_bg_color", "#3584e4"));
+            string accent_fg = css (theme_color ("accent_fg_color", "#ffffff"));
             var sb = new StringBuilder ();
             sb.append ("<!DOCTYPE html><html><head><meta charset=\"utf-8\">");
             sb.append ("<meta http-equiv=\"Content-Security-Policy\" content=\"%s\">".printf (Html.outer_policy (allow)));
-            sb.append ("<style>html,body{margin:0;padding:0;background:%s;color:%s;font-family:sans-serif;font-size:14px;}".printf (bg, fg));
-            sb.append ("section.msg{margin:0;padding:10px 16px 6px 16px;border-bottom:1px solid %s;background:%s;}".printf (line, card));
-            sb.append ("section.msg.current{box-shadow:inset 3px 0 0 #3584e4;}");
+            sb.append ("<style>html,body{margin:0;padding:0;background:transparent;color:%s;font-family:sans-serif;font-size:14px;}".printf (fg));
+            sb.append ("section.msg{margin:0 0 10px 0;padding:10px 16px 12px 16px;border-radius:12px;background:%s;}".printf (card));
             sb.append ("summary{cursor:pointer;list-style:none;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:4px 0;}summary::-webkit-details-marker{display:none;}");
-            sb.append (".face{width:28px;height:28px;border-radius:50%;object-fit:cover;align-self:center;flex:none;}.face.mono{display:inline-flex;align-items:center;justify-content:center;background:#3584e4;color:#fff;font-weight:700;font-size:13px;}");
+            sb.append (".face{width:28px;height:28px;border-radius:50%%;object-fit:cover;align-self:center;flex:none;}.face.mono{display:inline-flex;align-items:center;justify-content:center;background:%s;color:%s;font-weight:700;font-size:13px;}".printf (accent_bg, accent_fg));
             sb.append (".who{font-weight:700;}.addr,.when,.meta{color:%s;font-size:12px;}.when{margin-left:auto;}".printf (dim));
             sb.append ("details[open] .pv{display:none;}.pv{color:%s;font-size:12px;flex-basis:100%%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}".printf (dim));
-            sb.append (".acts{margin:4px 0 6px 0;display:flex;gap:14px;font-size:12px;}.acts a,.atts a,a.add{color:#3584e4;text-decoration:none;}a.add{font-size:12px;}.atts{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0;font-size:12px;}");
-            sb.append ("iframe{border:0;width:100%%;min-height:40px;display:block;background:%s;border-radius:8px;}.err{color:%s;padding:10px 0;}".printf (dark ? "#1f1f22" : "#ffffff", dim));
+            sb.append (".acts{margin:6px 0 8px 0;display:flex;gap:6px;font-size:12px;}.acts a{color:%s;text-decoration:none;padding:3px 10px;border-radius:999px;background:%s;}.acts a:hover{color:%s;}.atts a,a.add{color:%s;text-decoration:none;}a.add{font-size:12px;}.atts{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0;font-size:12px;}".printf (fg, line, accent, accent));
+            sb.append ("iframe{border:0;width:100%%;min-height:40px;display:block;background:transparent;border-radius:8px;}.err{color:%s;padding:10px 0;}".printf (dim));
             sb.append ("</style></head><body>");
             foreach (var l in loaded) sb.append (card_html (l, dark));
             sb.append ("</body></html>");
