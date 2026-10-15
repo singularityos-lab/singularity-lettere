@@ -3156,7 +3156,7 @@ namespace Singularity.Apps.Lettere {
                     break;
                 case "close-dialogs":
                     var open = new Gee.ArrayList<Gtk.Window> ();
-                    foreach (var w in app.get_windows ()) if (w != this) open.add (w);
+                    foreach (var w in app.get_windows ().copy ()) if (w != this) open.add (w);
                     foreach (var w in open) w.close ();
                     break;
                 case "dark":

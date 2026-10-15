@@ -234,7 +234,7 @@ namespace Singularity.Apps.Lettere {
             var quit = new SimpleAction ("quit", null);
             quit.activate.connect (() => {
                 var windows = new Gee.ArrayList<Gtk.Window> ();
-                foreach (var w in get_windows ()) windows.add (w);
+                foreach (var w in get_windows ().copy ()) windows.add (w);
                 foreach (var w in windows) w.close ();
             });
             add_action (quit);
@@ -852,7 +852,7 @@ namespace Singularity.Apps.Lettere {
                     var session = new Soup.Session ();
                     var msg = new Soup.Message ("POST", target.url);
                     msg.set_request_body_from_bytes ("application/x-www-form-urlencoded", new Bytes ("List-Unsubscribe=One-Click".data));
-                    yield session.send_and_read_async (msg, Priority.DEFAULT, null);
+                    yield Singularity.HttpBody.read (session, msg, 64 * 1024);
                     if (msg.status_code < 300) {
                         toast (_("You were unsubscribed from this list"), null, null);
                         return;
