@@ -763,6 +763,59 @@ void test_msg_roundtrip () {
     }
 }
 
+void walk_pst (PstFolder f, int depth) {
+    if (depth > 16) return;
+    foreach (var c in f.children) walk_pst (c, depth + 1);
+}
+
+void test_mapi_damaged () {
+    var rand = new Rand.with_seed (5);
+    uint8[] msg = {};
+    uint8[] pst = {};
+    try {
+        msg = MsgWriter.from_mime (sample_message ("Danni", true));
+        var top = new PstExportFolder ("Archivio");
+        var inbox = new PstExportFolder ("Inbox");
+        top.children.add (inbox);
+        for (int i = 0; i < 4; i++) inbox.add (sample_message ("Messaggio %d".printf (i), i % 2 == 0), 0);
+        pst = new PstWriter ().build (top);
+    } catch (Error e) {
+        error (e.message);
+    }
+    for (int round = 0; round < 300; round++) {
+        uint8[] m = msg.copy ();
+        uint8[] p = pst.copy ();
+        int flips = 1 + rand.int_range (0, 12);
+        for (int i = 0; i < flips; i++) {
+            m[rand.int_range (0, m.length)] = (uint8) rand.int_range (0, 256);
+            p[rand.int_range (0, int.min (p.length, round % 2 == 0 ? 4096 : p.length))] = (uint8) rand.int_range (0, 256);
+        }
+        try {
+            MsgFile.to_mime (m);
+        } catch (Error e) {
+        }
+        try {
+            var file = new PstFile.from_data ((owned) p);
+            walk_pst (file.folders (), 0);
+        } catch (Error e) {
+        }
+        int rtf_len = 16 + rand.int_range (0, 200);
+        uint8[] rtf = new uint8[rtf_len];
+        for (int i = 0; i < rtf.length; i++) rtf[i] = (uint8) rand.int_range (0, 256);
+        rtf[8] = 0x4C;
+        rtf[9] = 0x5A;
+        rtf[10] = 0x46;
+        rtf[11] = 0x75;
+        Rtf.decompress (rtf);
+        rtf[8] = 0x4D;
+        rtf[9] = 0x45;
+        rtf[10] = 0x4C;
+        rtf[11] = 0x41;
+        rtf[7] = 0xFF;
+        Rtf.decompress (rtf);
+    }
+}
+
 void test_pst_roundtrip () {
     try {
         var top = new PstExportFolder ("Archivio");
@@ -895,6 +948,7 @@ int main (string[] args) {
     Test.add_func ("/mime/builder-extras", test_builder_extras);
     Test.add_func ("/mapi/msg-roundtrip", test_msg_roundtrip);
     Test.add_func ("/mapi/pst-roundtrip", test_pst_roundtrip);
+    Test.add_func ("/mapi/damaged", test_mapi_damaged);
     Test.add_func ("/contacts/groups-online", test_contact_groups);
     return Test.run ();
 }

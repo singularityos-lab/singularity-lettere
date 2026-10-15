@@ -11,8 +11,8 @@ namespace Singularity.Apps.Lettere {
 
         public string text () {
             if (type == 0x001F) return Mapi.utf16 (data);
-            if (type == 0x001E) return Mapi.ansi (data);
-            if (type == 0x0102) return Mime.bytes_to_string (data);
+            if (type == 0x001E) return Mapi.ansi (data).make_valid ();
+            if (type == 0x0102) return Mime.bytes_to_string (data).make_valid ();
             return "";
         }
 
@@ -96,12 +96,12 @@ namespace Singularity.Apps.Lettere {
         public const uint16 IPM_SUBTREE_ENTRYID = 0x35E0;
 
         public uint16 u16 (uint8[] d, int o) {
-            if (o + 2 > d.length) return 0;
+            if (o < 0 || (int64) o + 2 > d.length) return 0;
             return (uint16) (d[o] | (d[o + 1] << 8));
         }
 
         public uint32 u32 (uint8[] d, int o) {
-            if (o + 4 > d.length) return 0;
+            if (o < 0 || (int64) o + 4 > d.length) return 0;
             return (uint32) d[o] | ((uint32) d[o + 1] << 8) | ((uint32) d[o + 2] << 16) | ((uint32) d[o + 3] << 24);
         }
 
@@ -123,7 +123,7 @@ namespace Singularity.Apps.Lettere {
                         continue;
                     }
                 }
-                sb.append_unichar ((unichar) c);
+                sb.append_unichar (c >= 0xD800 && c <= 0xDFFF ? (unichar) 0xFFFD : (unichar) c);
             }
             return sb.str;
         }
@@ -265,7 +265,7 @@ namespace Singularity.Apps.Lettere {
             uint32 raw_size = Mapi.u32 (data, 4);
             uint32 magic = Mapi.u32 (data, 8);
             if (magic == 0x414C454D) {
-                int n = int.min ((int) raw_size, data.length - 16);
+                int n = (int) int64.min (raw_size, data.length - 16);
                 return Mapi.ansi (data[16:16 + n]);
             }
             if (magic != 0x75465A4C) return "";
@@ -275,7 +275,7 @@ namespace Singularity.Apps.Lettere {
             int wpos = pre;
             var outb = new ByteArray ();
             int pos = 16;
-            int end = int.min (data.length, (int) comp_size + 4);
+            int end = (int) int64.min (data.length, (int64) comp_size + 4);
             while (pos < end && outb.len < raw_size) {
                 uint8 control = data[pos++];
                 for (int bit = 0; bit < 8 && pos < end; bit++) {
@@ -285,7 +285,10 @@ namespace Singularity.Apps.Lettere {
                         pos += 2;
                         int offset = (token >> 4) & 0xFFF;
                         int length = (token & 0xF) + 2;
-                        if (offset == wpos) return (string) outb.data;
+                        if (offset == wpos) {
+                            outb.append ({ 0 });
+                            return Mapi.ansi (outb.data);
+                        }
                         for (int k = 0; k < length; k++) {
                             uint8 c = dict[(offset + k) & 0xFFF];
                             outb.append ({ c });
