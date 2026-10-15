@@ -11,6 +11,29 @@ namespace Singularity.Apps.Lettere {
     }
 
     public class ApiClient : Object {
+        private static async Bytes read_bounded (Soup.Session session, Soup.Message message, int64 limit, int priority, Cancellable? cancellable) throws Error {
+            var stream = yield session.send_async (message, priority, cancellable);
+            if (message.response_headers.get_content_length () > limit) throw new IOError.MESSAGE_TOO_LARGE ("The response is too large");
+            var body = new ByteArray ();
+            var chunk = new uint8[65536];
+            ssize_t n;
+            while ((n = yield stream.read_async (chunk, priority, cancellable)) > 0) {
+                if (body.len + n > limit) {
+                    try {
+                        stream.close (null);
+                    } catch (Error e) {
+                    }
+                    throw new IOError.MESSAGE_TOO_LARGE ("The response is too large");
+                }
+                body.append (chunk[0:(int) n]);
+            }
+            try {
+                stream.close (null);
+            } catch (Error e) {
+            }
+            return ByteArray.free_to_bytes ((owned) body);
+        }
+
         public Soup.Session session;
         private unowned AccountSync owner;
         private MailLogin? login;
@@ -95,7 +118,7 @@ namespace Singularity.Apps.Lettere {
                 if (body != null) msg.set_request_body_from_bytes (content_type ?? "application/octet-stream", body);
                 Bytes reply;
                 try {
-                    reply = yield session.send_and_read_async (msg, Priority.DEFAULT, null);
+                    reply = yield read_bounded (session, msg, 256 * 1024 * 1024, Priority.DEFAULT, null);
                 } catch (Error e) {
                     if (e is TlsError) throw new MailError.TLS (e.message);
                     throw new MailError.OFFLINE (_("Could not reach %s: %s").printf (msg.uri.get_host () ?? next, e.message));
