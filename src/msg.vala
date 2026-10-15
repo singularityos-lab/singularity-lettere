@@ -29,9 +29,12 @@ namespace Singularity.Apps.Lettere {
         public CfbFile (uint8[] bytes) throws Error {
             data = bytes;
             if (!is_cfb (data)) throw new PstError.FORMAT (_("This is not an Outlook message file"));
-            sector_size = 1 << Mapi.u16 (data, 0x1E);
-            mini_size = 1 << Mapi.u16 (data, 0x20);
-            uint32 fat_sectors = Mapi.u32 (data, 0x2C);
+            int sector_shift = Mapi.u16 (data, 0x1E);
+            int mini_shift = Mapi.u16 (data, 0x20);
+            if ((sector_shift != 9 && sector_shift != 12) || mini_shift < 6 || mini_shift > sector_shift) throw new PstError.FORMAT (_("The Outlook message file is damaged"));
+            sector_size = 1 << sector_shift;
+            mini_size = 1 << mini_shift;
+            uint32 fat_sectors = uint32.min (Mapi.u32 (data, 0x2C), data.length / sector_size);
             uint32 dir_start = Mapi.u32 (data, 0x30);
             mini_cutoff = Mapi.u32 (data, 0x38);
             uint32 minifat_start = Mapi.u32 (data, 0x3C);
@@ -45,6 +48,7 @@ namespace Singularity.Apps.Lettere {
             }
             uint32 d = difat_start;
             for (uint32 k = 0; k < difat_count && d < 0xFFFFFFFA && fat_list.size < fat_sectors; k++) {
+                if (offset (d) + sector_size > data.length) break;
                 int per = sector_size / 4 - 1;
                 for (int i = 0; i < per && fat_list.size < fat_sectors; i++) {
                     uint32 s = Mapi.u32 (data, (int) offset (d) + i * 4);
@@ -54,6 +58,7 @@ namespace Singularity.Apps.Lettere {
                 d = Mapi.u32 (data, (int) offset (d) + per * 4);
             }
             foreach (uint32 s in fat_list) {
+                if (offset (s) + sector_size > data.length) continue;
                 int o = (int) offset (s);
                 for (int i = 0; i < sector_size / 4; i++) fat.add (Mapi.u32 (data, o + i * 4));
             }

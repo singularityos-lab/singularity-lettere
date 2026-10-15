@@ -381,11 +381,14 @@ namespace Singularity.Apps.Lettere {
             data_size = hdr[2];
             int levels = hdr[3];
             uint32 root = Mapi.u32 (hdr, 4);
-            collect (root, levels, key_size, data_size, list);
+            if (key_size + data_size == 0 || levels > 8) return list;
+            int budget = 1 << 16;
+            collect (root, levels, key_size, data_size, list, ref budget);
             return list;
         }
 
-        private void collect (uint32 hid, int level, int ks, int ds, Gee.List<Bytes> into) {
+        private void collect (uint32 hid, int level, int ks, int ds, Gee.List<Bytes> into, ref int budget) {
+            if (--budget < 0) return;
             var node = get (hid);
             if (node == null) return;
             if (level == 0) {
@@ -394,7 +397,7 @@ namespace Singularity.Apps.Lettere {
                 return;
             }
             int rs = ks + 4;
-            for (int o = 0; o + rs <= node.length; o += rs) collect (Mapi.u32 (node, o + ks), level - 1, ks, ds, into);
+            for (int o = 0; o + rs <= node.length && budget > 0; o += rs) collect (Mapi.u32 (node, o + ks), level - 1, ks, ds, into, ref budget);
         }
     }
 
@@ -555,7 +558,7 @@ namespace Singularity.Apps.Lettere {
             var list = new Gee.ArrayList<PstRow> ();
             var info = heap.get (heap.user_root);
             if (info == null || info.length < 22 || info[0] != 0x7C) return list;
-            int cols = info[1];
+            int cols = int.min (info[1], (info.length - 22) / 8);
             int end_1b = Mapi.u16 (info, 6);
             int row_size = Mapi.u16 (info, 8);
             uint32 rows_hnid = Mapi.u32 (info, 14);
@@ -587,6 +590,7 @@ namespace Singularity.Apps.Lettere {
                         uint16 id = (uint16) (tag >> 16);
                         uint8[] value;
                         if (type == 0x0002 || type == 0x0003 || type == 0x000B || type == 0x0004 || type == 0x000A || ((type == 0x0014 || type == 0x0040) && cb == 8)) {
+                            if (o + ib + cb > d.length) continue;
                             value = d[o + ib:o + ib + cb];
                         } else {
                             value = value_of (Mapi.u32 (d, o + ib));
