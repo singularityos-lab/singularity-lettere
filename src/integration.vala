@@ -30,7 +30,11 @@ namespace Singularity.Apps.Lettere {
             string dir = directory ();
             DirUtils.create_with_parents (dir, 0700);
             string uid = Uuid.string_random ();
-            string name = a.name != "" ? a.name : a.email.split ("@")[0];
+            string name = a.name;
+            if (name == "") {
+                string[] local = a.email.split ("@");
+                name = local.length > 0 ? local[0].dup () : "";
+            }
             string[] parts = name.split (" ");
             string family = parts.length > 1 ? parts[parts.length - 1] : "";
             string given = parts.length > 1 ? string.joinv (" ", parts[0:parts.length - 1]) : name;
