@@ -73,6 +73,8 @@ executable('singularity-lettere',
     'src/reader.vala',
     'src/mail_print.vala',
     'src/composer.vala',
+    'src/compose_fields.vala',
+    'src/agent_intents.vala',
     'src/account_dialog.vala',
     'src/dialogs.vala',
     'src/importer.vala',
@@ -86,6 +88,16 @@ executable('singularity-lettere',
   ),
   dependencies: core_deps + [gtk_dep, webkit_dep, poppler_dep, unix_print_dep, gst_dep, libsingularity_dep],
   install: true
+)
+
+shared_module('singularity-lettere-card',
+  files('card/agent_card.vala', 'src/compose_fields.vala', 'src/mime.vala', 'src/html.vala'),
+  dependencies: [dependency('gio-2.0'), gee_dep, json_dep, gtk_dep, libsingularity_dep],
+  install: true,
+  install_dir: get_option('libdir') / 'singularity' / 'cards'
+)
+install_data('card/dev.sinty.lettere.card',
+  install_dir: get_option('datadir') / 'singularity' / 'cards'
 )
 
 service_conf = configuration_data()

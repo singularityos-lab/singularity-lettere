@@ -1,0 +1,5 @@
+[Card]
+App=dev.sinty.lettere
+Intents=mail_prepare
+Module=libsingularity-lettere-card.so
+Symbol=singularity_lettere_card_new

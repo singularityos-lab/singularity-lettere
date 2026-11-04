@@ -280,7 +280,7 @@ namespace Singularity.Apps.Lettere {
             fields.column_spacing = 12;
             fields.row_spacing = 2;
             int row = 0;
-            fields.attach (field_label (_("From")), 0, row);
+            fields.attach (ComposeFields.label (_("From")), 0, row);
             var from_box = new Box (Orientation.HORIZONTAL, 0);
             from_drop = new DropDown (null, null);
             from_drop.hexpand = true;
@@ -300,7 +300,7 @@ namespace Singularity.Apps.Lettere {
             from_box.append (from_label);
             fields.attach (from_box, 1, row++);
 
-            fields.attach (field_label (_("To")), 0, row);
+            fields.attach (ComposeFields.label (_("To")), 0, row);
             var to_box = new Box (Orientation.HORIZONTAL, 6);
             to = new AddressEntry (app, _("To"));
             to.hexpand = true;
@@ -320,7 +320,7 @@ namespace Singularity.Apps.Lettere {
             cc.hexpand = true;
             cc.edited.connect (() => mark_dirty ());
             cc_row = new Box (Orientation.HORIZONTAL, 0);
-            var cc_label = field_label (_("Cc"));
+            var cc_label = ComposeFields.label (_("Cc"));
             fields.attach (cc_label, 0, row);
             cc_row.append (cc);
             fields.attach (cc_row, 1, row++);
@@ -330,13 +330,13 @@ namespace Singularity.Apps.Lettere {
             bcc.hexpand = true;
             bcc.edited.connect (() => mark_dirty ());
             bcc_row = new Box (Orientation.HORIZONTAL, 0);
-            var bcc_label = field_label (_("Bcc"));
+            var bcc_label = ComposeFields.label (_("Bcc"));
             fields.attach (bcc_label, 0, row);
             bcc_row.append (bcc);
             fields.attach (bcc_row, 1, row++);
             bcc_row.bind_property ("visible", bcc_label, "visible", BindingFlags.SYNC_CREATE);
 
-            fields.attach (field_label (_("Subject")), 0, row);
+            fields.attach (ComposeFields.label (_("Subject")), 0, row);
             subject = new Entry ();
             subject.hexpand = true;
             subject.update_property (AccessibleProperty.LABEL, _("Subject"), -1);
@@ -357,16 +357,8 @@ namespace Singularity.Apps.Lettere {
                 to.add_address (a);
                 mark_dirty ();
             });
-            plain = new TextView ();
-            plain.wrap_mode = WrapMode.WORD_CHAR;
-            plain.top_margin = 14;
-            plain.bottom_margin = 14;
-            plain.left_margin = 16;
-            plain.right_margin = 16;
-            plain.add_css_class ("lettere-compose-body");
-            plain.update_property (AccessibleProperty.LABEL, _("Message"), -1);
+            plain = ComposeFields.body ();
             plain.buffer.changed.connect (() => mark_dirty ());
-            Singularity.Text.SpellIntegration.attach (plain);
             var plain_scroll = new ScrolledWindow ();
             plain_scroll.hscrollbar_policy = PolicyType.NEVER;
             plain_scroll.child = plain;
@@ -625,13 +617,6 @@ namespace Singularity.Apps.Lettere {
             status_label.label = string.joinv (" · ", parts.to_array ());
             status_label.visible = parts.size > 0;
             mark_dirty ();
-        }
-
-        private Label field_label (string text) {
-            var l = new Label (text);
-            l.xalign = 1;
-            l.add_css_class ("lettere-field-label");
-            return l;
         }
 
         private void mark_dirty () {

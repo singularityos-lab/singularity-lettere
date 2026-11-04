@@ -21,7 +21,7 @@ namespace Singularity.Apps.Lettere {
         public signal void syncs_changed ();
         public signal void outbox_changed ();
         public signal void outbox_result (int64 id, string error);
-        private MailService? mail_service;
+        public MailService? mail_service;
         private MailNotifications notifications;
         private DailySummary? summary;
         private bool startup_summary_shown;
@@ -109,7 +109,8 @@ namespace Singularity.Apps.Lettere {
                 return Source.CONTINUE;
             });
 
-            Singularity.Application.add_app_css (CSS);
+            Singularity.Application.add_app_css (CSS + ComposeFields.STYLE);
+            LettereIntents.install (this);
             build_menu ();
             rebuild_folder_menu ();
             store.folders_changed.connect ((acc) => rebuild_folder_menu ());
@@ -1033,35 +1034,6 @@ namespace Singularity.Apps.Lettere {
 .context-ribbon button.context-ribbon-item.lettere-send image,
 .context-ribbon button.context-ribbon-item.lettere-send label {
     color: @accent_fg_color;
-}
-
-.lettere-compose-fields {
-    border-radius: 14px;
-    padding: 6px 14px;
-    background-color: alpha(@window_fg_color, 0.04);
-}
-
-.lettere-compose-fields entry,
-.lettere-compose-fields dropdown > button {
-    background: transparent;
-    box-shadow: none;
-    border: none;
-}
-
-.lettere-field-label {
-    opacity: 0.6;
-    font-weight: 600;
-}
-
-.lettere-compose-body,
-.lettere-compose-body text {
-    background: transparent;
-    font-size: 15px;
-}
-
-.lettere-compose-card {
-    border-radius: 14px;
-    background-color: alpha(@window_fg_color, 0.04);
 }
 
 .lettere-drop {

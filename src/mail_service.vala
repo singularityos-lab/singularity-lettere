@@ -30,6 +30,7 @@ namespace Singularity.Apps.Lettere {
         private string path = "";
         private Gee.HashMap<int64?, string> owners = new Gee.HashMap<int64?, string> ((v) => int64_hash (v), (a, b) => a == b);
         private Gee.HashSet<int64?> sent = new Gee.HashSet<int64?> ((v) => int64_hash (v), (a, b) => a == b);
+        private Gee.HashMap<string, string> prepared = new Gee.HashMap<string, string> ();
 
         [DBus (visible = false)]
         public MailService (LettereApp app) {
@@ -124,6 +125,62 @@ namespace Singularity.Apps.Lettere {
                 }
             }
             return done;
+        }
+
+        [DBus (visible = false)]
+        public string prepare (Account a) {
+            var raw = new uint8[16];
+            var urandom = FileStream.open ("/dev/urandom", "rb");
+            if (urandom == null || urandom.read (raw) != raw.length) return "";
+            var token = new StringBuilder ();
+            foreach (var b in raw) token.append_printf ("%02x", b);
+            prepared[token.str] = a.id;
+            app.hold ();
+            string key = token.str;
+            Timeout.add_seconds (900, () => {
+                forget (key);
+                return Source.REMOVE;
+            });
+            return token.str;
+        }
+
+        public async int64 send_prepared (string token, [DBus (signature = "ay")] Variant message, BusName sender) throws MailServiceError, DBusError, IOError {
+            string? account = token != "" ? prepared[token] : null;
+            if (account == null || !(yield from_shell (sender))) throw new MailServiceError.DENIED ("This message was not prepared for the desktop");
+            var data = message.get_data_as_bytes ();
+            if (data.get_size () > MAX_SIZE) throw new MailServiceError.INVALID ("A message is larger than 50 MB");
+            var o = new Outgoing (Outgoing.normalize (data.get_data ()));
+            if (o.recipients.size == 0) throw new MailServiceError.INVALID ("A message has no recipients");
+            var a = find_account (account, sending_accounts ());
+            if (a == null) throw new MailServiceError.NO_ACCOUNT ("No mail account can send messages");
+            forget (token);
+            var from = o.pick_from (a);
+            int64 id = app.queue_raw (a, o.with_from (from), o.recipients, from.email, o.subject, null, 0);
+            owners[id] = sender;
+            return id;
+        }
+
+        private void forget (string token) {
+            if (prepared.unset (token)) app.release ();
+        }
+
+        private async bool from_shell (string sender) {
+            try {
+                var reply = yield connection.call ("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                    "GetConnectionUnixProcessID", new Variant ("(s)", sender), new VariantType ("(u)"), DBusCallFlags.NONE, 5000, null);
+                uint32 pid;
+                reply.get ("(u)", out pid);
+                return Path.get_basename (FileUtils.read_link ("/proc/%u/exe".printf (pid))) == "singularity-desktop";
+            } catch (Error e) {
+                return false;
+            }
+        }
+
+        [DBus (visible = false)]
+        public Account? sending_account (string hint) {
+            var list = sending_accounts ();
+            if (list.size == 0) return null;
+            return find_account (hint, list) ?? list[0];
         }
 
         private Gee.ArrayList<Account> sending_accounts () {
