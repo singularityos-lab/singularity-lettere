@@ -384,7 +384,7 @@ namespace Singularity.Apps.Lettere {
                     if (f.role != "inbox") yield sync_folder_locked (f, false, 0, ignored);
                 }
                 store.restore_message_state (account.id);
-                store.rethread (account.id);
+                yield store.rethread_async (account.id);
                 data_changed ();
                 foreach (var f in folders) {
                     if (f.local && !(backend is LocalBackend)) continue;
@@ -430,7 +430,7 @@ namespace Singularity.Apps.Lettere {
             try {
                 yield ensure ();
                 yield sync_folder_locked (f, true, 20, fresh);
-                store.rethread (account.id);
+                yield store.rethread_async (account.id);
                 state = SyncState.IDLE;
                 data_changed ();
             } catch (Error e) {
@@ -582,12 +582,12 @@ namespace Singularity.Apps.Lettere {
                 try {
                     var fresh = new Gee.ArrayList<MessageInfo> ();
                     yield sync_folder_locked (dest, false, 20, fresh);
-                    store.rethread (account.id);
+                    yield store.rethread_async (account.id);
                 } catch (Error e) {
                 }
                 data_changed ();
             }
-            store.rethread (account.id);
+            yield store.rethread_async (account.id);
         }
 
         public async void copy (Gee.List<MessageInfo> list, Folder dest) {
@@ -623,7 +623,7 @@ namespace Singularity.Apps.Lettere {
                 } catch (Error e) {
                 }
             }
-            store.rethread (account.id);
+            yield store.rethread_async (account.id);
             data_changed ();
         }
 
@@ -813,7 +813,7 @@ namespace Singularity.Apps.Lettere {
                 foreach (string fl in flags.split (" ")) flag_bits |= legacy_flag (fl);
                 int64 id = store.insert_message (f, store.max_uid (f.id) + 1, flag_bits, raw.length, raw, new DateTime.now_utc ().to_unix ());
                 store.set_body (id, raw);
-                store.rethread (account.id);
+                yield store.rethread_async (account.id);
                 data_changed ();
                 var m = store.message (id);
                 return m != null ? m.ident : "";
@@ -832,7 +832,7 @@ namespace Singularity.Apps.Lettere {
             try {
                 var fresh = new Gee.ArrayList<MessageInfo> ();
                 yield sync_folder_locked (f, false, 20, fresh);
-                store.rethread (account.id);
+                yield store.rethread_async (account.id);
             } catch (Error e) {
                 set_error (e);
             }

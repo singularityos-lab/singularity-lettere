@@ -416,7 +416,11 @@ namespace Singularity.Apps.Lettere {
                 if (r.output.length == 0) return null;
                 string b64 = Base64.encode (r.output);
                 var sb = new StringBuilder ("addr=%s; keydata=".printf (a.email));
-                for (int i = 0; i < b64.length; i += 72) sb.append ("\r\n " + b64.substring (i, int.min (72, b64.length - i)));
+                int bn = b64.length;
+                for (int i = 0; i < bn; i += 72) {
+                    sb.append ("\r\n ");
+                    sb.append_len (b64.offset (i), int.min (72, bn - i));
+                }
                 return sb.str;
             } catch (Error e) {
                 return null;

@@ -729,10 +729,7 @@ namespace Singularity.Apps.Lettere {
         public void set_body (int64 id, uint8[] raw) {
             var msg = new MimeMessage (raw);
             string body = msg.body_text ();
-            string preview = body.replace ("\r", " ").replace ("\n", " ").replace ("\t", " ");
-            while (preview.contains ("  ")) preview = preview.replace ("  ", " ");
-            preview = preview.strip ();
-            if (preview.char_count () > 200) preview = preview.substring (0, preview.index_of_nth_char (200));
+            string preview = make_preview (body);
             var st = prepare ("UPDATE messages SET raw = ?, preview = ?, has_attach = ? WHERE id = ?");
             st.bind_blob (1, raw, raw.length, null);
             st.bind_text (2, preview);
@@ -757,6 +754,29 @@ namespace Singularity.Apps.Lettere {
             fts.bind_text (4, recipients);
             fts.bind_text (5, body + names.str);
             fts.step ();
+        }
+
+        public static string make_preview (string body) {
+            var sb = new StringBuilder ();
+            int chars = 0;
+            bool space = false;
+            int i = 0;
+            unichar c = 0;
+            while (chars < 200 && body.get_next_char (ref i, out c)) {
+                if (c == '\r' || c == '\n' || c == '\t' || c == ' ') {
+                    space = chars > 0;
+                    continue;
+                }
+                if (space) {
+                    sb.append_c (' ');
+                    chars++;
+                    space = false;
+                    if (chars >= 200) break;
+                }
+                sb.append_unichar (c);
+                chars++;
+            }
+            return sb.str;
         }
 
         public uint8[]? body (int64 id) {
@@ -1048,9 +1068,36 @@ namespace Singularity.Apps.Lettere {
         }
 
         public void rethread (string account) {
-            var inputs = new Gee.ArrayList<ThreadInput> ();
             var current = new Gee.HashMap<int64?, string> ((v) => int64_hash (v), (a, b) => a == b);
-            var st = prepare ("SELECT id, message_id, in_reply_to, refs, thread, conv FROM messages WHERE account = ?");
+            var groups = new Threader ().group (thread_inputs (db, account, current));
+            apply_threads (groups, current);
+        }
+
+        public async void rethread_async (string account) {
+            var current = new Gee.HashMap<int64?, string> ((v) => int64_hash (v), (a, b) => a == b);
+            Gee.HashMap<int64?, string>? groups = null;
+            string db_path = path;
+            new Thread<bool> ("lettere-rethread", () => {
+                Sqlite.Database rdb;
+                if (Sqlite.Database.open_v2 (db_path, out rdb, Sqlite.OPEN_READONLY) == Sqlite.OK) {
+                    rdb.busy_timeout (5000);
+                    groups = new Threader ().group (thread_inputs (rdb, account, current));
+                }
+                Idle.add (rethread_async.callback);
+                return true;
+            });
+            yield;
+            if (groups == null) {
+                rethread (account);
+                return;
+            }
+            apply_threads (groups, current);
+        }
+
+        private static Gee.ArrayList<ThreadInput> thread_inputs (Sqlite.Database d, string account, Gee.HashMap<int64?, string> current) {
+            var inputs = new Gee.ArrayList<ThreadInput> ();
+            Sqlite.Statement st;
+            d.prepare_v2 ("SELECT id, message_id, in_reply_to, refs, thread, conv FROM messages WHERE account = ?", -1, out st);
             st.bind_text (1, account);
             while (st.step () == Sqlite.ROW) {
                 int64 id = st.column_int64 (0);
@@ -1059,14 +1106,18 @@ namespace Singularity.Apps.Lettere {
                 inputs.add (input);
                 current[id] = text (st, 4);
             }
-            var groups = new Threader ().group (inputs);
-            var up = prepare ("UPDATE messages SET thread = ? WHERE id = ?");
+            return inputs;
+        }
+
+        private void apply_threads (Gee.HashMap<int64?, string> groups, Gee.HashMap<int64?, string> current) {
+            var up = prepare ("UPDATE messages SET thread = ? WHERE id = ? AND thread = ?");
             begin ();
             foreach (var e in groups.entries) {
-                if (current[e.key] == e.value) continue;
+                if (!current.has_key (e.key) || current[e.key] == e.value) continue;
                 up.reset ();
                 up.bind_text (1, e.value);
                 up.bind_int64 (2, e.key);
+                up.bind_text (3, current[e.key]);
                 up.step ();
             }
             commit ();

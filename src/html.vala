@@ -40,12 +40,14 @@ namespace Singularity.Apps.Lettere.Html {
     public string decode_entities (string s) {
         if (!s.contains ("&")) return s;
         var sb = new StringBuilder ();
+        int n = s.length;
         int i = 0;
-        while (i < s.length) {
+        while (i < n) {
             if (s[i] == '&') {
-                int semi = s.index_of_char (';', i);
-                if (semi > i && semi - i < 12) {
-                    sb.append (entity (s.substring (i + 1, semi - i - 1)));
+                int semi = i + 1;
+                while (semi < n && semi - i < 12 && s[semi] != ';') semi++;
+                if (semi < n && semi - i < 12 && s[semi] == ';') {
+                    sb.append (entity (s.offset (i + 1).ndup (semi - i - 1)));
                     i = semi + 1;
                     continue;
                 }
@@ -66,7 +68,7 @@ namespace Singularity.Apps.Lettere.Html {
             if (c == '<') {
                 int end = html.index_of_char ('>', i);
                 if (end < 0) break;
-                string tag = html.substring (i + 1, end - i - 1).strip ().down ();
+                string tag = html.offset (i + 1).ndup (end - i - 1).strip ().down ();
                 string tname = tag;
                 int sp = tname.index_of_char (' ');
                 if (sp > 0) tname = tname.substring (0, sp);
@@ -199,7 +201,7 @@ namespace Singularity.Apps.Lettere.Html {
             if (c == '<') {
                 int end = html.index_of_char ('>', i);
                 if (end < 0) break;
-                string tag = html.substring (i + 1, end - i - 1).strip ().down ();
+                string tag = html.offset (i + 1).ndup (end - i - 1).strip ().down ();
                 string tname = tag;
                 int sp = tname.index_of_char (' ');
                 if (sp > 0) tname = tname.substring (0, sp);
@@ -305,7 +307,7 @@ namespace Singularity.Apps.Lettere.Html {
             if (next < 0) next = n;
             int stop = i;
             while (stop < next && html[stop] != '\r' && html[stop] != '\n' && html[stop] != '\t' && html[stop] != ' ') stop++;
-            w.text (html.substring (i, stop - i));
+            w.text (html.offset (i).ndup (stop - i));
             i = stop;
         }
         w.flush ();
@@ -314,19 +316,20 @@ namespace Singularity.Apps.Lettere.Html {
 
     public bool has_remote (string html) {
         string low = html.down ();
+        int ln = low.length;
         string[] keys = { "src=", "background=", "url(", "srcset=", "poster=", "href=" };
         foreach (string k in keys) {
             int pos = 0;
             while ((pos = low.index_of (k, pos)) >= 0) {
                 int v = pos + k.length;
-                while (v < low.length && (low[v] == '"' || low[v] == '\'' || low[v] == ' ')) v++;
-                string rest = low.substring (v, int.min (8, low.length - v));
+                while (v < ln && (low[v] == '"' || low[v] == '\'' || low[v] == ' ')) v++;
+                unowned string rest = low.offset (v);
                 bool remote = rest.has_prefix ("http:") || rest.has_prefix ("https:") || rest.has_prefix ("//");
                 if (remote && k != "href=") return true;
                 if (remote && k == "href=") {
                     int tag_start = pos;
                     while (tag_start > 0 && low[tag_start] != '<') tag_start--;
-                    if (tag_start >= 0 && low.substring (tag_start, int.min (5, low.length - tag_start)).has_prefix ("<link")) return true;
+                    if (tag_start >= 0 && low.offset (tag_start).has_prefix ("<link")) return true;
                 }
                 pos = v;
             }
@@ -339,11 +342,12 @@ namespace Singularity.Apps.Lettere.Html {
         var sb = new StringBuilder ();
         int pos = 0;
         string low = html.down ();
+        int hn = html.length;
         while (true) {
             int at = low.index_of ("cid:", pos);
             if (at < 0) break;
             int end = at + 4;
-            while (end < html.length && html[end] != '"' && html[end] != '\'' && html[end] != ')' && html[end] != ' ' && html[end] != '>') end++;
+            while (end < hn && html[end] != '"' && html[end] != '\'' && html[end] != ')' && html[end] != ' ' && html[end] != '>') end++;
             string id = Uri.unescape_string (html.substring (at + 4, end - at - 4)) ?? html.substring (at + 4, end - at - 4);
             sb.append (html.substring (pos, at - pos));
             var a = parts[id];
@@ -380,24 +384,25 @@ namespace Singularity.Apps.Lettere.Html {
 
     public string linkify (string escaped) {
         var sb = new StringBuilder ();
+        int n = escaped.length;
         int i = 0;
-        while (i < escaped.length) {
+        while (i < n) {
             int h = escaped.index_of ("http", i);
             if (h < 0) {
-                sb.append (escaped.substring (i));
+                sb.append (escaped.offset (i));
                 break;
             }
-            string rest = escaped.substring (h);
+            unowned string rest = escaped.offset (h);
             if (!rest.has_prefix ("http://") && !rest.has_prefix ("https://")) {
-                sb.append (escaped.substring (i, h - i + 4));
+                sb.append_len (escaped.offset (i), h - i + 4);
                 i = h + 4;
                 continue;
             }
             int e = h;
-            while (e < escaped.length && escaped[e] != ' ' && escaped[e] != '\n' && escaped[e] != '<' && escaped[e] != '"' && escaped[e] != '\t' && !(escaped[e] == '&' && escaped.substring (e).has_prefix ("&gt;"))) e++;
+            while (e < n && escaped[e] != ' ' && escaped[e] != '\n' && escaped[e] != '<' && escaped[e] != '"' && escaped[e] != '\t' && !(escaped[e] == '&' && escaped.offset (e).has_prefix ("&gt;"))) e++;
             while (e > h && (escaped[e - 1] == '.' || escaped[e - 1] == ',' || escaped[e - 1] == ')' || escaped[e - 1] == ';')) e--;
-            string url = escaped.substring (h, e - h);
-            sb.append (escaped.substring (i, h - i));
+            string url = escaped.offset (h).ndup (e - h);
+            sb.append_len (escaped.offset (i), h - i);
             sb.append ("<a href=\"%s\">%s</a>".printf (url, url));
             i = e;
         }

@@ -324,9 +324,10 @@ namespace Singularity.Apps.Lettere {
 
         public string encode_base64_lines (uint8[] data, int width = 76) {
             string b = Base64.encode (data);
-            var sb = new StringBuilder.sized (b.length + b.length / width * 2 + 4);
-            for (int i = 0; i < b.length; i += width) {
-                sb.append (b.substring (i, int.min (width, b.length - i)));
+            int n = b.length;
+            var sb = new StringBuilder.sized (n + n / width * 2 + 4);
+            for (int i = 0; i < n; i += width) {
+                sb.append_len (b.offset (i), int.min (width, n - i));
                 sb.append ("\r\n");
             }
             return sb.str;

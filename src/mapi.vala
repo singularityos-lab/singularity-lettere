@@ -320,12 +320,12 @@ namespace Singularity.Apps.Lettere {
                 if (c == '{') {
                     depth++;
                     i++;
-                    if (i < n && rtf[i] == '\\' && rtf.substring (i).has_prefix ("\\*\\htmltag")) {
+                    if (i < n && rtf[i] == '\\' && rtf.offset (i).has_prefix ("\\*\\htmltag")) {
                         html_depth = depth;
                         i += 10;
                         while (i < n && rtf[i].isdigit ()) i++;
                         if (i < n && rtf[i] == ' ') i++;
-                    } else if (i < n && rtf[i] == '\\' && rtf.substring (i).has_prefix ("\\*") && skip_depth < 0) {
+                    } else if (i < n && rtf[i] == '\\' && rtf.offset (i).has_prefix ("\\*") && skip_depth < 0) {
                         skip_depth = depth;
                     }
                     continue;
@@ -401,8 +401,8 @@ namespace Singularity.Apps.Lettere {
                 if (c == '{') {
                     depth++;
                     i++;
-                    if (i < n && rtf.substring (i).has_prefix ("\\*") && skip < 0) skip = depth;
-                    else if (skip < 0 && (rtf.substring (i).has_prefix ("\\fonttbl") || rtf.substring (i).has_prefix ("\\colortbl") || rtf.substring (i).has_prefix ("\\stylesheet") || rtf.substring (i).has_prefix ("\\info"))) skip = depth;
+                    if (i < n && rtf.offset (i).has_prefix ("\\*") && skip < 0) skip = depth;
+                    else if (skip < 0 && (rtf.offset (i).has_prefix ("\\fonttbl") || rtf.offset (i).has_prefix ("\\colortbl") || rtf.offset (i).has_prefix ("\\stylesheet") || rtf.offset (i).has_prefix ("\\info"))) skip = depth;
                     continue;
                 }
                 if (c == '}') {
