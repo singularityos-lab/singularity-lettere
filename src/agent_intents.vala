@@ -51,6 +51,33 @@ namespace Singularity.Apps.Lettere {
             return n;
         }
 
+        private static async Json.Node trash_all (LettereApp app, Gee.HashMap<string, Gee.ArrayList<MessageInfo>> by_account) throws Error {
+            int moved = 0, total = 0;
+            var b = new Json.Builder ();
+            b.begin_object ();
+            b.set_member_name ("folders");
+            b.begin_array ();
+            foreach (var e in by_account.entries) {
+                var sync = app.syncs[e.key];
+                var trash = app.store.folder_by_role (e.key, "trash");
+                if (trash == null) trash = yield sync.ensure_folder ("trash", _("Trash"));
+                if (trash == null) throw new IOError.NOT_FOUND ("the account %s has no Trash folder".printf (e.key));
+                var keys = new Gee.HashSet<string> ();
+                foreach (var m in e.value) keys.add (m.subject + "|" + m.message_id);
+                total += e.value.size;
+                yield sync.move (e.value, trash);
+                var tids = new Gee.ArrayList<int64?> ();
+                tids.add (trash.id);
+                foreach (var m in app.store.list (tids, false, null, 5000, null)) if (keys.contains (m.subject + "|" + m.message_id)) moved++;
+                b.add_string_value (trash.path);
+            }
+            b.end_array ();
+            b.set_member_name ("requested").add_int_value (total);
+            b.set_member_name ("in_trash").add_int_value (moved);
+            b.end_object ();
+            return done (b.get_root (), moved >= total);
+        }
+
         internal static void install (LettereApp app) {
             app.agent.add_intent ("mail_folders", "List the mail accounts and their folders with id, path, role, unread and total counts.",
                 "{\"type\":\"object\",\"properties\":{}}", Singularity.AppIntentRisk.READ, (args) => {
@@ -258,6 +285,80 @@ namespace Singularity.Apps.Lettere {
                     } catch (Error e) {
                         reply (null, e);
                     }
+                });
+            app.agent.add_async_intent ("mail_delete", "Move messages by id to the Trash of their account. Undo by moving them back with mail_move.",
+                "{\"type\":\"object\",\"properties\":{\"ids\":{\"type\":\"array\",\"items\":{\"type\":\"integer\"}}},\"required\":[\"ids\"]}",
+                Singularity.AppIntentRisk.UNDOABLE, (args, reply) => {
+                    try {
+                        var by_account = new Gee.HashMap<string, Gee.ArrayList<MessageInfo>> ();
+                        foreach (var id in id_list (args)) {
+                            int64 mid = id;
+                            var m = app.store.message (mid);
+                            if (m == null) throw new IOError.NOT_FOUND ("no message %s".printf (mid.to_string ()));
+                            if (!app.syncs.has_key (m.account)) throw new IOError.NOT_FOUND ("the account of message %s is not running".printf (mid.to_string ()));
+                            if (!by_account.has_key (m.account)) by_account[m.account] = new Gee.ArrayList<MessageInfo> ();
+                            by_account[m.account].add (m);
+                        }
+                        trash_all.begin (app, by_account, (o, r) => {
+                            try {
+                                reply (trash_all.end (r), null);
+                            } catch (Error e) {
+                                reply (null, e);
+                            }
+                        });
+                    } catch (Error e) {
+                        reply (null, e);
+                    }
+                });
+            app.agent.add_intent ("mail_rule_create", "Create a mail rule. conditions are {field, op, value} with field from, to, cc, recipients, subject, body, list-id, has-attachment, importance, size-larger, size-smaller or all, and op contains, not-contains, is, starts, ends or regex. actions are {kind, value} with kind move, copy (value is a folder id or path), read, unread, flag, category, delete, junk, archive, forward or redirect (value is an address). It runs on new mail; run_now applies it to the inbox at once.",
+                "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"account\":{\"type\":\"string\"},\"match_all\":{\"type\":\"boolean\"},\"stop\":{\"type\":\"boolean\"},\"conditions\":{\"type\":\"array\",\"items\":{\"type\":\"object\"}},\"actions\":{\"type\":\"array\",\"items\":{\"type\":\"object\"}},\"run_now\":{\"type\":\"boolean\"}},\"required\":[\"name\",\"conditions\",\"actions\"]}",
+                Singularity.AppIntentRisk.UNDOABLE, (args) => {
+                    string[] fields = { "from", "to", "cc", "recipients", "subject", "body", "list-id", "has-attachment", "importance", "size-larger", "size-smaller", "all" };
+                    string[] ops = { "contains", "not-contains", "is", "starts", "ends", "regex" };
+                    string[] kinds = { "move", "copy", "read", "unread", "flag", "category", "delete", "junk", "archive", "forward", "redirect", "pin" };
+                    var rule = new Rule ();
+                    rule.name = text (args, "name");
+                    rule.account = text (args, "account");
+                    rule.match_all = !args.has_member ("match_all") || args.get_boolean_member ("match_all");
+                    rule.stop = args.has_member ("stop") && args.get_boolean_member ("stop");
+                    foreach (var node in args.get_array_member ("conditions").get_elements ()) {
+                        var c = node.get_object ();
+                        string field = text (c, "field"), op = text (c, "op") != "" ? text (c, "op") : "contains";
+                        if (!(field in fields)) throw new IOError.INVALID_ARGUMENT ("unknown condition field %s".printf (field));
+                        if (!(op in ops)) throw new IOError.INVALID_ARGUMENT ("unknown condition op %s".printf (op));
+                        rule.conditions.add (new RuleCondition (field, op, text (c, "value")));
+                    }
+                    foreach (var node in args.get_array_member ("actions").get_elements ()) {
+                        var a = node.get_object ();
+                        string kind = text (a, "kind");
+                        if (!(kind in kinds)) throw new IOError.INVALID_ARGUMENT ("unknown action %s".printf (kind));
+                        string value = "";
+                        if (a.has_member ("value")) {
+                            var v = a.get_member ("value");
+                            if (v.get_value_type () == typeof (int64)) {
+                                var f = app.store.folder (v.get_int ());
+                                if (f == null) throw new IOError.NOT_FOUND ("no folder %lld".printf (v.get_int ()));
+                                value = f.path;
+                                if (rule.account == "") rule.account = f.account;
+                            } else {
+                                value = v.get_string ();
+                            }
+                        }
+                        if ((kind == "move" || kind == "copy" || kind == "forward" || kind == "redirect") && value == "") throw new IOError.INVALID_ARGUMENT ("%s needs a value".printf (kind));
+                        rule.actions.add (new RuleAction (kind, value));
+                    }
+                    if (rule.conditions.size == 0 || rule.actions.size == 0) throw new IOError.INVALID_ARGUMENT ("a rule needs at least one condition and one action");
+                    app.rules.add (rule);
+                    if (args.has_member ("run_now") && args.get_boolean_member ("run_now")) {
+                        foreach (var acc in app.accounts.accounts) {
+                            if (rule.account != "" && acc.id != rule.account) continue;
+                            var inbox = app.store.folder_by_role (acc.id, "inbox");
+                            if (inbox != null) app.run_rules_now.begin (inbox);
+                        }
+                    }
+                    var node = rule.to_json ();
+                    node.get_object ().set_string_member ("summary", rule.describe ());
+                    return done (node, app.rules.find (rule.id) != null);
                 });
             app.agent.add_async_intent ("mail_flag", "Mark messages by id as read or unread (flag seen) or flagged for follow-up (flag flagged).",
                 "{\"type\":\"object\",\"properties\":{\"ids\":{\"type\":\"array\",\"items\":{\"type\":\"integer\"}},\"flag\":{\"type\":\"string\",\"enum\":[\"seen\",\"flagged\"]},\"on\":{\"type\":\"boolean\"}},\"required\":[\"ids\",\"flag\"]}",
