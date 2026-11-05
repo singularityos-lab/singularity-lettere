@@ -238,7 +238,7 @@ namespace Singularity.Apps.Lettere {
         public bool plain_mode { get; private set; }
 
         private LettereApp app;
-        private DropDown from_drop;
+        private ChoiceButton from_drop;
         private Gee.ArrayList<Address> from_list = new Gee.ArrayList<Address> ();
         private Gee.ArrayList<Account> from_accounts = new Gee.ArrayList<Account> ();
         private Label from_label;
@@ -282,7 +282,7 @@ namespace Singularity.Apps.Lettere {
             int row = 0;
             fields.attach (ComposeFields.label (_("From")), 0, row);
             var from_box = new Box (Orientation.HORIZONTAL, 0);
-            from_drop = new DropDown (null, null);
+            from_drop = new ChoiceButton (null, null);
             from_drop.hexpand = true;
             from_drop.halign = Align.START;
             from_drop.update_property (AccessibleProperty.LABEL, _("From"), -1);

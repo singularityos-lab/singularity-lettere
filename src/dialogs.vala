@@ -7,8 +7,7 @@ namespace Singularity.Apps.Lettere {
         public signal void chosen (int64 when);
 
         private Gtk.Calendar date_picker;
-        private SpinButton hour;
-        private SpinButton minute;
+        private TimePicker time_picker;
 
         public WhenDialog (LettereApp app, string title, int64 initial, string action) {
             base (app, title, null, null, action, ConfirmDialog.ActionStyle.SUGGESTED);
@@ -23,20 +22,15 @@ namespace Singularity.Apps.Lettere {
             row.halign = Align.CENTER;
             row.margin_top = 6;
             row.append (new Label (_("Time")));
-            hour = new SpinButton.with_range (0, 23, 1);
-            hour.value = start.get_hour ();
-            hour.update_property (AccessibleProperty.LABEL, _("Hour"), -1);
-            row.append (hour);
-            row.append (new Label (":"));
-            minute = new SpinButton.with_range (0, 59, 5);
-            minute.value = start.get_minute ();
-            minute.update_property (AccessibleProperty.LABEL, _("Minute"), -1);
-            row.append (minute);
+            time_picker = new TimePicker ();
+            time_picker.hour = start.get_hour ();
+            time_picker.minute = start.get_minute ();
+            row.append (time_picker);
             custom_area.append (row);
             response.connect ((r) => {
                 if (r != ConfirmDialog.Response.PRIMARY) return;
                 var d = date_picker.get_date ();
-                var t = new DateTime.local (d.get_year (), d.get_month (), d.get_day_of_month (), (int) hour.value, (int) minute.value, 0);
+                var t = new DateTime.local (d.get_year (), d.get_month (), d.get_day_of_month (), time_picker.hour, time_picker.minute, 0);
                 chosen (t.to_unix ());
             });
         }
@@ -297,8 +291,8 @@ namespace Singularity.Apps.Lettere {
             });
         }
 
-        private DropDown drop (string[] ids, string[] labels, string current, owned ChangedValue cb) {
-            var d = new DropDown (new StringList (labels), null);
+        private ChoiceButton drop (string[] ids, string[] labels, string current, owned ChangedValue cb) {
+            var d = new ChoiceButton (new StringList (labels), null);
             for (int i = 0; i < ids.length; i++) if (ids[i] == current) d.selected = i;
             d.notify["selected"].connect (() => cb (ids[(int) d.selected]));
             return d;
@@ -540,7 +534,7 @@ namespace Singularity.Apps.Lettere {
                 foreach (var act in rule.actions) {
                     var ac = act;
                     var row = new Box (Orientation.HORIZONTAL, 6);
-                    var d = new DropDown (new StringList (alabels), null);
+                    var d = new ChoiceButton (new StringList (alabels), null);
                     for (int i = 0; i < aids.length; i++) if (aids[i] == ac.kind) d.selected = i;
                     d.notify["selected"].connect (() => ac.kind = aids[(int) d.selected]);
                     row.append (d);

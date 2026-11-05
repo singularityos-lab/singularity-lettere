@@ -407,8 +407,7 @@ namespace Singularity.Apps.Lettere {
         public signal void chosen (DateTime start, DateTime end);
 
         private Gtk.Calendar date_picker;
-        private SpinButton hour;
-        private SpinButton minute;
+        private TimePicker time_picker;
         private SpinButton length;
         private Label busy;
         private CalendarEvent evt;
@@ -426,13 +425,10 @@ namespace Singularity.Apps.Lettere {
             var row = new Box (Orientation.HORIZONTAL, 8);
             row.halign = Align.CENTER;
             row.append (new Label (_("Start")));
-            hour = new SpinButton.with_range (0, 23, 1);
-            hour.value = start.get_hour ();
-            row.append (hour);
-            row.append (new Label (":"));
-            minute = new SpinButton.with_range (0, 55, 5);
-            minute.value = (start.get_minute () / 5) * 5;
-            row.append (minute);
+            time_picker = new TimePicker ();
+            time_picker.hour = start.get_hour ();
+            time_picker.minute = (start.get_minute () / 5) * 5;
+            row.append (time_picker);
             row.append (new Label (_("Minutes")));
             length = new SpinButton.with_range (5, 600, 5);
             int64 dur = evt.end_time != null && evt.start_time != null ? evt.end_time.difference (evt.start_time) / TimeSpan.MINUTE : 60;
@@ -444,8 +440,7 @@ namespace Singularity.Apps.Lettere {
             busy.add_css_class ("caption");
             custom_area.append (busy);
             date_picker.day_selected.connect (() => check_busy.begin ());
-            hour.value_changed.connect (() => check_busy.begin ());
-            minute.value_changed.connect (() => check_busy.begin ());
+            time_picker.changed.connect (() => check_busy.begin ());
             length.value_changed.connect (() => check_busy.begin ());
             check_busy.begin ();
             response.connect ((r) => {
@@ -457,7 +452,7 @@ namespace Singularity.Apps.Lettere {
 
         private DateTime picked () {
             var d = date_picker.get_date ();
-            return new DateTime.local (d.get_year (), d.get_month (), d.get_day_of_month (), (int) hour.value, (int) minute.value, 0);
+            return new DateTime.local (d.get_year (), d.get_month (), d.get_day_of_month (), time_picker.hour, time_picker.minute, 0);
         }
 
         private async void check_busy () {
