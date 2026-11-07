@@ -2416,16 +2416,30 @@ namespace Singularity.Apps.Lettere {
             return cmd;
         }
 
+        private uint reading_job = 0;
+
         private void read_aloud () {
             var mime = reader.mime;
             if (mime == null) return;
+            stop_reading ();
+            string text = "%s. %s. %s".printf (reader.current != null ? reader.current.sender_display : "", mime.subject, mime.body_text ());
+            var speech = Singularity.Speech.get_default ();
+            speech.speak.begin (text, "", 0, 0, (o, r) => {
+                try {
+                    reading_job = speech.speak.end (r);
+                    show_toast (_("Reading the message aloud"), _("Stop"), () => stop_reading ());
+                } catch (Error e) {
+                    read_with_command (text);
+                }
+            });
+        }
+
+        private void read_with_command (string text) {
             string cmd = speech_command ();
             if (Environment.find_program_in_path (cmd) == null) {
                 show_toast (_("Reading aloud needs a speech engine (%s)").printf (cmd));
                 return;
             }
-            stop_reading ();
-            string text = "%s. %s. %s".printf (reader.current != null ? reader.current.sender_display : "", mime.subject, mime.body_text ());
             try {
                 speaker = new Subprocess.newv ({ cmd, "-e" }, SubprocessFlags.STDIN_PIPE);
                 speaker.communicate_utf8_async.begin (text, null, (o, r) => {
@@ -2442,7 +2456,12 @@ namespace Singularity.Apps.Lettere {
         }
 
         private void stop_reading () {
-            if (speaker != null) speaker.force_exit ();
+            if (reading_job != 0) {
+                Singularity.Speech.get_default ().stop ();
+                reading_job = 0;
+            }
+            if (speaker == null) return;
+            speaker.force_exit ();
             speaker = null;
             try {
                 string cmd = speech_command ();
