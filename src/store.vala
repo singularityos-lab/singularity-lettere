@@ -1077,18 +1077,20 @@ namespace Singularity.Apps.Lettere {
             var current = new Gee.HashMap<int64?, string> ((v) => int64_hash (v), (a, b) => a == b);
             Gee.HashMap<int64?, string>? groups = null;
             string db_path = path;
-            new Thread<bool> ("lettere-rethread", () => {
-                var background = Singularity.BackgroundWork.enter ();
-                Sqlite.Database rdb;
-                if (Sqlite.Database.open_v2 (db_path, out rdb, Sqlite.OPEN_READONLY) == Sqlite.OK) {
-                    rdb.busy_timeout (5000);
-                    groups = new Threader ().group (thread_inputs (rdb, account, current));
-                }
-                background.finish ();
-                Idle.add (rethread_async.callback);
-                return true;
-            });
-            yield;
+            try {
+                yield Async.run<bool>((c) => {
+                    var background = Singularity.BackgroundWork.enter ();
+                    Sqlite.Database rdb;
+                    if (Sqlite.Database.open_v2 (db_path, out rdb, Sqlite.OPEN_READONLY) == Sqlite.OK) {
+                        rdb.busy_timeout (5000);
+                        groups = new Threader ().group (thread_inputs (rdb, account, current));
+                    }
+                    background.finish ();
+                    return true;
+                }, Async.Qos.USER);
+            } catch (Error e) {
+                warning("%s", e.message);
+            }
             if (groups == null) {
                 rethread (account);
                 return;
