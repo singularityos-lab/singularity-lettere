@@ -123,6 +123,9 @@ namespace Singularity.Apps.Lettere {
                 w.show_message_id (v.get_int64 ());
             });
             add_action (show);
+            var delete_code = new SimpleAction ("delete-one-time-code", VariantType.STRING);
+            delete_code.activate.connect ((v) => delete_code_message (int64.parse (v.get_string ())));
+            add_action (delete_code);
             var show_inbox = new SimpleAction ("show-inbox", null);
             show_inbox.activate.connect (() => {
                 var w = main_window ();
@@ -376,7 +379,33 @@ namespace Singularity.Apps.Lettere {
                 }
                 body = _("From %s").printf (string.joinv (", ", senders.to_array ()));
             }
-            notifications.send.begin (a.id, title, body, list.size == 1 ? list[0].id : 0);
+            string text = "";
+            bool spam = false;
+            if (list.size == 1) {
+                var m = list[0];
+                text = m.subject + "\n" + m.preview;
+                var f = store.folder (m.folder);
+                spam = f != null && f.role == "junk";
+            }
+            notifications.send.begin (a.id, title, body, list.size == 1 ? list[0].id : 0, text, spam);
+        }
+
+        private void delete_code_message (int64 id) {
+            var m = id > 0 ? store.message (id) : null;
+            if (m == null) return;
+            var s = syncs[m.account];
+            if (s == null) return;
+            var list = new Gee.ArrayList<MessageInfo> ();
+            list.add (m);
+            hold ();
+            s.ensure_folder.begin ("trash", "Trash", (o, res) => {
+                var trash = s.ensure_folder.end (res);
+                if (trash != null && trash.id != m.folder) s.move.begin (list, trash, (o2, r2) => {
+                    s.move.end (r2);
+                    release ();
+                });
+                else release ();
+            });
         }
 
         public int64 queue_message (Account a, MessageBuilder b, SentHook? hook, int64 send_at = 0) {

@@ -19,7 +19,7 @@ namespace Singularity.Apps.Lettere {
             this.settings = settings;
         }
 
-        public async void send (string account, string title, string body, int64 message) {
+        public async void send (string account, string title, string body, int64 message, string text = "", bool spam = false) {
             try {
                 var connection = yield Bus.get (BusType.SESSION);
                 if (bus == null) {
@@ -44,6 +44,9 @@ namespace Singularity.Apps.Lettere {
                 var hints = new VariantBuilder (new VariantType ("a{sv}"));
                 hints.add ("{sv}", "desktop-entry", new Variant.string ("dev.sinty.lettere"));
                 hints.add ("{sv}", "category", new Variant.string ("email.arrived"));
+                if (message > 0) hints.add ("{sv}", "x-sinty-message-id", new Variant.string (message.to_string ()));
+                if (text != "") hints.add ("{sv}", "x-sinty-message-text", new Variant.string (text));
+                if (spam) hints.add ("{sv}", "x-sinty-spam", new Variant.boolean (true));
                 hints.add ("{sv}", "sound-name", new Variant.string ("message"));
                 string? file = sound_file ();
                 if (file != null) hints.add ("{sv}", "sound-file", new Variant.string (file));

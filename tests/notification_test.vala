@@ -24,6 +24,9 @@ class NotificationServer : Object {
         assert (hints["sound-name"].get_string () == "message");
         assert (hints["desktop-entry"].get_string () == "dev.sinty.lettere");
         assert (hints["category"].get_string () == "email.arrived");
+        assert (hints["x-sinty-message-text"].get_string () == "Your code is 482913");
+        assert (!hints.contains ("x-sinty-message-id") || int64.parse (hints["x-sinty-message-id"].get_string ()) > 0);
+        assert (!hints.contains ("x-sinty-spam"));
         silent = hints["suppress-sound"].get_boolean ();
         this.body = body;
         replacement = replaces;
@@ -40,7 +43,7 @@ void drain () {
 void deliver_notification (MailNotifications notifications, string account, int64 id) {
     var loop = new MainLoop ();
     uint timeout = Timeout.add_seconds (5, () => { assert_not_reached (); });
-    notifications.send.begin (account, "Sender & Co", "Plan <draft> & review", id, (obj, result) => {
+    notifications.send.begin (account, "Sender & Co", "Plan <draft> & review", id, "Your code is 482913", false, (obj, result) => {
         notifications.send.end (result);
         loop.quit ();
     });
