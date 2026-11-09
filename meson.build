@@ -62,7 +62,7 @@ core_sources = files(
 
 math_dep = meson.get_compiler('c').find_library('m', required: false)
 
-core_deps = [dependency('gio-2.0'), gee_dep, json_dep, soup_dep, secret_dep, sqlite_dep, math_dep]
+core_deps = [dependency('gio-2.0'), gee_dep, json_dep, soup_dep, secret_dep, sqlite_dep, math_dep, libsingularity_dep]
 
 executable('singularity-lettere',
   core_sources + files(
