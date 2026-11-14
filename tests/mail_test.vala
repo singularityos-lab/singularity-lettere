@@ -273,6 +273,10 @@ void test_addresses_and_dates () {
     var d3 = Mime.parse_date ("Mon, 3 Mar 2025 8:05 EST");
     assert (d3 != null && d3.to_utc ().get_hour () == 13);
     assert (Mime.parse_date ("garbage") == null);
+    var d4 = Mime.parse_date ("Mon, 09 Nov 2026 09:10:00 +0000");
+    assert (d4 != null && d4.to_unix () == 1794215400);
+    var d5 = Mime.parse_date ("08 Aug 2026 10:00:00 GMT");
+    assert (d5 != null && d5.get_day_of_month () == 8);
     var now = new DateTime.now_local ();
     var back = Mime.parse_date (Mime.format_date (now));
     assert (back != null && back.to_unix () == now.to_unix ());
@@ -357,12 +361,12 @@ void test_autoconfig () {
 }
 
 void test_html () {
-    string t = Html.to_text ("<html><head><style>p{}</style></head><body><p>Hello&nbsp;<b>you</b> &amp; me</p><ul><li>one</li><li>two</li></ul><script>x()</script>&#8364;&#x41;</body></html>");
+    string t = Html.to_text ("<html><head><style>p{}</style></head><body><p>Hello&nbsp;<b>you</b> &amp; me</p><ul><li>one</li><li>two</li></ul><script>x()</script>&#8364;&#x41;&#039;</body></html>");
     assert (t.contains ("Hello you & me"));
     assert (t.contains ("• one"));
     assert (!t.contains ("x()"));
     assert (!t.contains ("p{}"));
-    assert (t.contains ("€A"));
+    assert (t.contains ("€A'"));
     assert (Html.has_remote ("<img src=\"https://a/b.png\">"));
     assert (Html.has_remote ("<div style=\"background:url(http://x/y)\">"));
     assert (Html.has_remote ("<link rel=stylesheet href='https://x/s.css'>"));

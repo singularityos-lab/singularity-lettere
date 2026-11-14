@@ -32,7 +32,7 @@ namespace Singularity.Apps.Lettere.Html {
             if (int64.try_parse (name.substring (2), out v, null, 16) && v > 0 && v < 0x110000) return ((unichar) v).to_string ();
         } else if (name.has_prefix ("#")) {
             int64 v;
-            if (int64.try_parse (name.substring (1), out v) && v > 0 && v < 0x110000) return ((unichar) v).to_string ();
+            if (int64.try_parse (name.substring (1), out v, null, 10) && v > 0 && v < 0x110000) return ((unichar) v).to_string ();
         }
         return "&" + name + ";";
     }

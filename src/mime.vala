@@ -842,7 +842,7 @@ namespace Singularity.Apps.Lettere {
             if (tokens.length < 4) return null;
             int day = 0, month = -1, year = 0;
             int ti = 0;
-            if (int.try_parse (tokens[0], out day)) {
+            if (int.try_parse (tokens[0], out day, null, 10)) {
                 for (int m = 0; m < 12; m++) {
                     if (tokens[1].down ().has_prefix (MONTHS[m])) month = m + 1;
                 }
@@ -851,11 +851,11 @@ namespace Singularity.Apps.Lettere {
                 for (int m = 0; m < 12; m++) {
                     if (tokens[0].down ().has_prefix (MONTHS[m])) month = m + 1;
                 }
-                if (!int.try_parse (tokens[1], out day)) return null;
+                if (!int.try_parse (tokens[1], out day, null, 10)) return null;
                 ti = 2;
             }
             if (month < 0) return null;
-            if (!int.try_parse (tokens[ti], out year)) return null;
+            if (!int.try_parse (tokens[ti], out year, null, 10)) return null;
             if (year < 50) year += 2000;
             else if (year < 1000) year += 1900;
             ti++;
