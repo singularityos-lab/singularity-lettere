@@ -310,7 +310,7 @@ namespace Singularity.Apps.Lettere {
             chip_box.append (chip_icon);
             filter_chip.child = chip_box;
             filter_chip.tooltip_text = _("Show All Messages");
-            filter_chip.clicked.connect (() => activate_action ("win.filter", new Variant.string ("all")));
+            filter_chip.clicked.connect (() => activate_action ("filter", new Variant.string ("all")));
             list_header.append (filter_chip);
 
             var list_pane = new Box (Orientation.VERTICAL, 0);
@@ -478,9 +478,9 @@ namespace Singularity.Apps.Lettere {
             labeled (c.add_button ("user-trash-full-symbolic", _("Empty Folder"), _("Empty Folder…"), "win.empty-folder"));
             c.add_separator ();
             ribbon_menu (c, "media-playlist-consecutive-symbolic", _("Rules"), null, true, (m) => {
-                m.add_item (_("Manage Rules…"), null, () => activate_action ("win.rules", null));
-                m.add_item (_("Create Rule from Message…"), null, () => activate_action ("win.new-rule", null));
-                m.add_item (_("Run Rules Now"), null, () => activate_action ("win.run-rules", null));
+                m.add_item (_("Manage Rules…"), null, () => activate_action ("rules", null));
+                m.add_item (_("Create Rule from Message…"), null, () => activate_action ("new-rule", null));
+                m.add_item (_("Run Rules Now"), null, () => activate_action ("run-rules", null));
             });
             save_search_item = labeled (c.add_button ("bookmark-new-symbolic", _("Save Search"), _("Save this search as a folder")));
             save_search_item.activated.connect (() => save_search ());
@@ -490,11 +490,11 @@ namespace Singularity.Apps.Lettere {
             filter_selector = c.add_selector (_("Show"), 13, "view-reveal-symbolic");
             string[,] filters = { { "all", _("All Messages") }, { "unread", _("Unread") }, { "flagged", _("Flagged") }, { "attachments", _("Has Attachments") }, { "mentions", _("Mentions Me") } };
             for (int i = 0; i < filters.length[0]; i++) filter_selector.add_option (filters[i, 0], filters[i, 1]);
-            filter_selector.changed.connect ((id) => activate_action ("win.filter", new Variant.string (id)));
+            filter_selector.changed.connect ((id) => activate_action ("filter", new Variant.string (id)));
             sort_selector = c.add_selector (_("Sort By"), 9, "view-sort-descending-symbolic");
             string[,] sorts = { { "date", _("Date") }, { "sender", _("From") }, { "subject", _("Subject") }, { "size", _("Size") }, { "flagged", _("Flagged First") }, { "unread", _("Unread First") } };
             for (int i = 0; i < sorts.length[0]; i++) sort_selector.add_option (sorts[i, 0], sorts[i, 1]);
-            sort_selector.changed.connect ((id) => activate_action ("win.sort", new Variant.string (id)));
+            sort_selector.changed.connect ((id) => activate_action ("sort", new Variant.string (id)));
             c.add_toggle ("view-sort-ascending-symbolic", _("Oldest on Top"), null, "win.sort-ascending");
             c.add_separator ();
             labeled_toggle (c.add_toggle ("mail-reply-all-symbolic", _("Conversations"), _("Conversation View"), "win.conversations"));
@@ -3204,9 +3204,9 @@ namespace Singularity.Apps.Lettere {
                 w.present ();
                 w.show_message_id (msg.id);
             });
-            add_bubble_icon ("mail-reply-sender-symbolic", _("Reply"), () => main_action ("win.reply"));
-            add_bubble_icon ("mail-reply-all-symbolic", _("Reply All"), () => main_action ("win.reply-all"));
-            add_bubble_icon ("mail-forward-symbolic", _("Forward"), () => main_action ("win.forward"));
+            add_bubble_icon ("mail-reply-sender-symbolic", _("Reply"), () => main_action ("reply"));
+            add_bubble_icon ("mail-reply-all-symbolic", _("Reply All"), () => main_action ("reply-all"));
+            add_bubble_icon ("mail-forward-symbolic", _("Forward"), () => main_action ("forward"));
             add_bubble_icon ("document-print-symbolic", _("Print"), () => reader.print (this));
             var one = new Gee.ArrayList<MessageInfo> ();
             one.add (m);

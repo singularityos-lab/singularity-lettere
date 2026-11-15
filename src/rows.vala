@@ -240,9 +240,10 @@ namespace Singularity.Apps.Lettere {
             var click = new GestureClick ();
             click.button = 1;
             click.released.connect ((n, x, y) => {
-                if (n == 2) open_requested ();
+                if (n == 1) open_requested ();
             });
             add_controller (click);
+            cursor = new Gdk.Cursor.from_name ("pointer", null);
         }
 
         public delegate File? DragFile ();

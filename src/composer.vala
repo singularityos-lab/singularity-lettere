@@ -654,7 +654,9 @@ namespace Singularity.Apps.Lettere {
             bool many = names.length > 1;
             from_drop.visible = many;
             from_label.visible = !many;
-            if (account != null && identity != null) {
+            if (account != null && account.protocol == "local") {
+                from_label.label = _("Add a mail account to send messages");
+            } else if (account != null && identity != null) {
                 from_label.label = identity.name != "" ? "%s <%s>".printf (identity.name, identity.email) : identity.email;
                 for (int i = 0; i < from_list.size; i++) {
                     if (from_accounts[i] == account && from_list[i].email.down () == identity.email.down ()) from_drop.selected = i;
@@ -689,7 +691,16 @@ namespace Singularity.Apps.Lettere {
         }
 
         private void reset (Account? a) {
-            account = a ?? (app.accounts.accounts.size > 0 ? app.accounts.accounts[0] : null);
+            Account? chosen = a;
+            if (chosen == null || chosen.protocol == "local") {
+                foreach (var other in app.accounts.accounts) {
+                    if (other.protocol != "local") {
+                        chosen = other;
+                        break;
+                    }
+                }
+            }
+            account = chosen ?? (app.accounts.accounts.size > 0 ? app.accounts.accounts[0] : null);
             identity = account != null ? account.address () : null;
             answering.clear ();
             draft = null;
@@ -810,7 +821,7 @@ namespace Singularity.Apps.Lettere {
 
         public void start_reply (Account a, MessageInfo m, MimeMessage mime, bool all) {
             reset (a);
-            identity = pick_identity (a, mime);
+            identity = pick_identity (account ?? a, mime);
             mode = all ? ComposeMode.REPLY_ALL : ComposeMode.REPLY;
             answering.add (m);
             var targets = new Gee.ArrayList<Address> ();
@@ -854,7 +865,7 @@ namespace Singularity.Apps.Lettere {
 
         public void start_forward (Account a, MessageInfo m, MimeMessage mime, bool as_attachment = false, uint8[]? raw = null) {
             reset (a);
-            identity = pick_identity (a, mime);
+            identity = pick_identity (account ?? a, mime);
             mode = ComposeMode.FORWARD;
             answering.add (m);
             subject.text = prefixed ("Fwd:", mime.subject);
@@ -885,7 +896,7 @@ namespace Singularity.Apps.Lettere {
             draft = m;
             var from = mime.from;
             if (from.size > 0) {
-                foreach (var id in a.identity_list ()) if (id.email.down () == from[0].email.down ()) identity = id;
+                foreach (var id in (account ?? a).identity_list ()) if (id.email.down () == from[0].email.down ()) identity = id;
             }
             to.set_addresses (mime.to);
             if (mime.cc.size > 0) {
