@@ -6,6 +6,7 @@ Icon=dev.sinty.lettere
 Terminal=false
 Type=Application
 Categories=Network;Email;
+X-Sinty-FormFactors=desktop;tablet;phone
 Keywords=mail;email;imap;smtp;inbox;message;letter;
 MimeType=message/rfc822;x-scheme-handler/mailto;
 StartupWMClass=dev.sinty.lettere
