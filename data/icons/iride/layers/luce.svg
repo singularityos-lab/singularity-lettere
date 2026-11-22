@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="236" viewBox="0 0 236 236" fill="none">
+  <defs>
+    <linearGradient id="le_side" x1="26" y1="118" x2="118" y2="204" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff9d73" />
+      <stop offset="1" stop-color="#e5543a" />
+    </linearGradient>
+    <radialGradient id="le_bloom" cx="70" cy="120" r="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="white" stop-opacity="0.38" />
+      <stop offset="1" stop-color="white" stop-opacity="0" />
+    </radialGradient>
+    <clipPath id="le_front_clip">
+      <path d="M26 120 L118 170 L210 120 V190 Q210 204 196 204 H40 Q26 204 26 190 Z" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#le_front_clip)">
+    <path d="M20 124 L102 196 L20 212 Z" fill="url(#le_side)" fill-opacity="0.55" />
+    <path d="M216 124 L134 196 L216 212 Z" fill="#c8402a" fill-opacity="0.35" />
+    <rect x="0" y="0" width="236" height="236" fill="url(#le_bloom)" />
+  </g>
+</svg>

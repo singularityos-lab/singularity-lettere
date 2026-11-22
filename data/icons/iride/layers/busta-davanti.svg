@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="236" viewBox="0 0 236 236" fill="none">
+  <defs>
+    <linearGradient id="le_front" x1="40" y1="112" x2="196" y2="210" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff8a5c" />
+      <stop offset="0.6" stop-color="#f0603a" />
+      <stop offset="1" stop-color="#d4442a" />
+    </linearGradient>
+  </defs>
+  <path d="M26 120 L118 170 L210 120 V190 Q210 204 196 204 H40 Q26 204 26 190 Z" fill="url(#le_front)" />
+</svg>

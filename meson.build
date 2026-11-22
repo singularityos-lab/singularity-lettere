@@ -134,6 +134,30 @@ install_data('data/icons/dev.sinty.lettere.svg',
   install_dir: get_option('datadir') / 'icons' / 'hicolor' / 'scalable' / 'apps'
 )
 
+iride = find_program('iride', required: get_option('iride'))
+if iride.found()
+  custom_target('iride-icon',
+    input: 'data/icons/iride/iride.json',
+    output: 'dev.sinty.lettere.iride',
+    depend_files: files(
+      'data/icons/iride/layers/busta-davanti.svg',
+      'data/icons/iride/layers/busta-dietro.svg',
+      'data/icons/iride/layers/foglio.svg',
+      'data/icons/iride/layers/luce.svg',
+      'data/icons/iride/layers/piega.svg',
+      'data/icons/iride/layers/righe-20.svg',
+      'data/icons/iride/layers/righe-28.svg',
+      'data/icons/iride/layers/righe.svg',
+      'data/icons/iride/layers/titolo-20.svg',
+      'data/icons/iride/layers/titolo-28.svg',
+      'data/icons/iride/layers/titolo.svg',
+    ),
+    command: [iride, 'build', meson.current_source_dir() / 'data' / 'icons' / 'iride', '@OUTPUT@'],
+    install: true,
+    install_dir: get_option('datadir') / 'icons' / 'hicolor' / 'scalable' / 'apps'
+  )
+endif
+
 mail_test = executable('lettere-test',
   core_sources + files('tests/mail_test.vala'),
   dependencies: core_deps,

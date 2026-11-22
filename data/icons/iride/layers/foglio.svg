@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="236" viewBox="0 0 236 236" fill="none">
+  <defs>
+    <linearGradient id="le_paper" x1="56" y1="44" x2="180" y2="174" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" />
+      <stop offset="0.7" stop-color="#fbf6ec" />
+      <stop offset="1" stop-color="#ece2cf" />
+    </linearGradient>
+    <linearGradient id="le_stamp" x1="150" y1="56" x2="176" y2="86" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5aa8ff" />
+      <stop offset="1" stop-color="#1f62d0" />
+    </linearGradient>
+  </defs>
+  <rect x="56" y="42" width="124" height="140" rx="9" fill="url(#le_paper)" />
+  <rect x="148" y="54" width="22" height="26" rx="3" fill="url(#le_stamp)" />
+  <rect x="152" y="58" width="14" height="18" rx="2" stroke="white" stroke-opacity="0.7" stroke-width="2" />
+</svg>
