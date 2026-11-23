@@ -68,6 +68,7 @@ executable('singularity-lettere',
   core_sources + files(
     'src/rows.vala',
     'src/integration.vala',
+    'src/hub_bridge.vala',
     'src/invite.vala',
     'src/editor.vala',
     'src/reader.vala',

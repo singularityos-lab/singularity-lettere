@@ -1850,6 +1850,23 @@ namespace Singularity.Apps.Lettere {
             }
         }
 
+        public void respond_to (int64 id, string action) {
+            show_message_id (id);
+            if (reader.current != null && reader.current.id == id && reader.mime != null) {
+                activate_action (action, null);
+                return;
+            }
+            ulong handler = 0;
+            handler = reader.message_shown.connect ((m) => {
+                if (m.id != id) return;
+                reader.disconnect (handler);
+                Idle.add (() => {
+                    activate_action (action, null);
+                    return Source.REMOVE;
+                });
+            });
+        }
+
         public void show_message_id (int64 id) {
             leave_compose ();
             var m = app.store.message (id);

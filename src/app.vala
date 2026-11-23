@@ -5,6 +5,7 @@ namespace Singularity.Apps.Lettere {
     public class LettereApp : Singularity.Application {
         public GLib.Settings settings;
         public Store store;
+        private HubBridge? hub = null;
         public AccountStore accounts;
         public ContactBook contacts;
         public OnlineMail online;
@@ -98,6 +99,7 @@ namespace Singularity.Apps.Lettere {
                 foreach (var s in syncs.values) s.network_changed (available);
             });
             online.start.begin ();
+            hub = new HubBridge (this);
             restart_timer ();
             outbox_timer = Timeout.add_seconds (1, () => {
                 pump_outbox ();
@@ -907,6 +909,12 @@ namespace Singularity.Apps.Lettere {
                 return;
             }
             toast (_("This list did not say how to unsubscribe"), null, null);
+        }
+
+        public void respond (int64 id, string action) {
+            var w = main_window ();
+            w.present ();
+            w.respond_to (id, action);
         }
 
         public LettereWindow main_window () {
