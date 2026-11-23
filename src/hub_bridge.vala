@@ -7,7 +7,13 @@ namespace Singularity.Apps.Lettere {
         private unowned LettereApp app;
         private DBusConnection? bus = null;
         private Gee.HashMap<string, Gee.HashSet<string>> published = new Gee.HashMap<string, Gee.HashSet<string>> ();
-        private Gee.HashMap<string, string> bodies = new Gee.HashMap<string, string> ();
+        private Gee.HashMap<string, Body> bodies = new Gee.HashMap<string, Body> ();
+
+        private class Body {
+            public string text = "";
+            public string markup = "";
+            public string[] files = {};
+        }
         private Gee.HashMap<string, string> deleted = new Gee.HashMap<string, string> ();
         private Gee.HashSet<string> dirty = new Gee.HashSet<string> ();
         private uint flush_source = 0;
@@ -90,7 +96,10 @@ namespace Singularity.Apps.Lettere {
                 item.attachment = m.has_attachment;
                 item.priority = m.importance > 1;
                 item.app_id = "dev.sinty.lettere";
-                item.body = body_of (m);
+                var body = body_of (m);
+                item.body = body.text;
+                item.markup = body.markup;
+                item.files = body.files;
                 Singularity.Hub.publish (item);
             }
             var before = published.has_key (a.id) ? published[a.id] : new Gee.HashSet<string> ();
@@ -100,14 +109,52 @@ namespace Singularity.Apps.Lettere {
             published[a.id] = keep;
         }
 
-        private string body_of (MessageInfo m) {
+        private Body body_of (MessageInfo m) {
             string key = m.id.to_string ();
             if (bodies.has_key (key)) return bodies[key];
+            var body = new Body ();
             var raw = app.store.body (m.id);
-            if (raw == null) return m.preview;
-            string text = new MimeMessage (raw).body_text ().strip ();
-            bodies[key] = text;
-            return text;
+            if (raw == null) {
+                body.text = m.preview;
+                return body;
+            }
+            var mime = new MimeMessage (raw);
+            body.text = mime.body_text ().strip ();
+            body.markup = mime.text_html != "" ? Html.to_markup (mime.text_html) : Html.text_markup (mime.text_plain.strip ());
+            string[] files = {};
+            foreach (var a in mime.attachments) {
+                if (!a.inline) files += a.filename != "" ? a.filename : _("Attachment");
+            }
+            body.files = files;
+            bodies[key] = body;
+            return body;
+        }
+
+        private void open_attachment (int64 id, int index) {
+            var raw = app.store.body (id);
+            if (raw == null) return;
+            var parts = new Gee.ArrayList<Attachment> ();
+            foreach (var a in new MimeMessage (raw).attachments) if (!a.inline) parts.add (a);
+            if (index < 0 || index >= parts.size) return;
+            var part = parts[index];
+            string dir = Path.build_filename (Environment.get_user_cache_dir (), "singularity-lettere", "attachments", "hub-%lld".printf (id));
+            DirUtils.create_with_parents (dir, 0700);
+            string name = part.filename.replace ("/", "_");
+            if (name == "" || name == "." || name == "..") name = "attachment";
+            var f = File.new_for_path (Path.build_filename (dir, name));
+            try {
+                f.replace_contents (part.data.get_data (), null, false, FileCreateFlags.PRIVATE | FileCreateFlags.REPLACE_DESTINATION, null);
+            } catch (Error e) {
+                warning ("lettere: hub: %s", e.message);
+                return;
+            }
+            new Gtk.FileLauncher (f).launch.begin (null, null, (o, res) => {
+                try {
+                    new Gtk.FileLauncher (f).launch.end (res);
+                } catch (Error e) {
+                    warning ("lettere: hub: %s", e.message);
+                }
+            });
         }
 
         private void on_action (string account, string id, string action) {
@@ -119,6 +166,10 @@ namespace Singularity.Apps.Lettere {
             }
             var m = app.store.message (int64.parse (id));
             if (m == null) return;
+            if (action.has_prefix ("attachment:")) {
+                open_attachment (m.id, int.parse (action.substring ("attachment:".length)));
+                return;
+            }
             var s = app.syncs[m.account];
             var list = new Gee.ArrayList<MessageInfo> ();
             list.add (m);

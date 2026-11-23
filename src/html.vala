@@ -149,12 +149,41 @@ namespace Singularity.Apps.Lettere.Html {
         return lines.str.strip ();
     }
 
+    private string link_target (string tag) {
+        int at = tag.down ().index_of ("href");
+        if (at < 0) return "";
+        int eq = tag.index_of_char ('=', at);
+        if (eq < 0) return "";
+        int start = eq + 1;
+        while (start < tag.length && tag[start] == ' ') start++;
+        if (start >= tag.length) return "";
+        char quote = tag[start];
+        int stop;
+        if (quote == '"' || quote == '\'') {
+            start++;
+            stop = tag.index_of_char (quote, start);
+        } else {
+            stop = start;
+            while (stop < tag.length && tag[stop] != ' ' && tag[stop] != '>') stop++;
+        }
+        if (stop < 0) stop = tag.length;
+        string url = decode_entities (tag.substring (start, stop - start)).strip ();
+        string lower = url.down ();
+        if (!lower.has_prefix ("http://") && !lower.has_prefix ("https://") && !lower.has_prefix ("mailto:")) return "";
+        return url;
+    }
+
+    public string text_markup (string text) {
+        return linkify (Markup.escape_text (text));
+    }
+
     private class MarkupWriter {
         public StringBuilder result = new StringBuilder ();
         public int bold;
         public int italic;
         public int underline;
         public int heading;
+        public string link = "";
         private StringBuilder run = new StringBuilder ();
         private char last = '\n';
 
@@ -177,8 +206,9 @@ namespace Singularity.Apps.Lettere.Html {
             if (italic > 0) attrs += " style=\"italic\"";
             if (underline > 0) attrs += " underline=\"single\"";
             if (heading > 0) attrs += " size=\"%s\"".printf (heading == 1 ? "x-large" : (heading == 2 ? "large" : "medium"));
-            if (attrs == "") result.append (t);
-            else result.append ("<span%s>%s</span>".printf (attrs, t));
+            if (attrs != "") t = "<span%s>%s</span>".printf (attrs, t);
+            if (link != "") t = "<a href=\"%s\">%s</a>".printf (Markup.escape_text (link), t);
+            result.append (t);
         }
 
         public void newline (int count) {
@@ -289,6 +319,14 @@ namespace Singularity.Apps.Lettere.Html {
                         break;
                     case "td":
                         w.space ();
+                        break;
+                    case "a":
+                        w.flush ();
+                        w.link = link_target (html.offset (i + 1).ndup (end - i - 1));
+                        break;
+                    case "/a":
+                        w.flush ();
+                        w.link = "";
                         break;
                 }
                 i = end + 1;
