@@ -2,7 +2,7 @@ using Gtk;
 
 namespace Singularity.Apps.Lettere {
 
-    public class LettereApp : Singularity.Application, Singularity.Migration.Migratable {
+    public class LettereApp : Singularity.Application, Singularity.Migration.Migratable, Singularity.Startup.Bootable {
         public GLib.Settings settings;
         public Store store;
         private HubBridge? hub = null;
@@ -502,8 +502,48 @@ namespace Singularity.Apps.Lettere {
             }
         }
 
-        public override void activate () {
-            main_window ().present ();
+        public Singularity.Startup.Plan build_plan (Singularity.Startup.Request request) {
+            var plan = new Singularity.Startup.Plan ();
+            plan.version = "lettere-1";
+            if (request.kind == Singularity.Startup.RequestKind.SERVICE) {
+                plan.main ("ready", Singularity.Startup.Category.PREPARE, (c) => {})
+                    .reaches (Singularity.Startup.Milestone.SHELL_READY)
+                    .reaches (Singularity.Startup.Milestone.CONTENT_READY)
+                    .reaches (Singularity.Startup.Milestone.INTERACTIVE);
+                return plan;
+            }
+            var window = plan.main ("window", Singularity.Startup.Category.SHELL, (c) => {
+                c.window = request.kind == Singularity.Startup.RequestKind.OPEN ? present_window () : show_window ();
+            }).reaches (Singularity.Startup.Milestone.SHELL_READY);
+            if (request.kind == Singularity.Startup.RequestKind.OPEN) {
+                var files = request.files ();
+                plan.main ("open-file", Singularity.Startup.Category.CONTENT, (c) => open_files (files))
+                    .depends_on ("window")
+                    .reaches (Singularity.Startup.Milestone.CONTENT_READY)
+                    .reaches (Singularity.Startup.Milestone.INTERACTIVE);
+            } else {
+                window.reaches (Singularity.Startup.Milestone.CONTENT_READY).reaches (Singularity.Startup.Milestone.INTERACTIVE);
+            }
+            return plan;
+        }
+
+        public void handle_request (Singularity.Startup.Request request) {
+            if (request.kind == Singularity.Startup.RequestKind.OPEN) {
+                present_window ();
+                open_files (request.files ());
+            } else {
+                show_window ();
+            }
+        }
+
+        private LettereWindow present_window () {
+            var w = main_window ();
+            w.present ();
+            return w;
+        }
+
+        private LettereWindow show_window () {
+            var w = present_window ();
             if (!startup_summary_shown) {
                 startup_summary_shown = true;
                 if (settings.get_boolean ("startup-summary")) {
@@ -515,6 +555,7 @@ namespace Singularity.Apps.Lettere {
                 }
             }
             TestScript.maybe_run (this);
+            return w;
         }
 
         private void show_daily_summary (bool sound) {
@@ -526,9 +567,8 @@ namespace Singularity.Apps.Lettere {
             if (sound) notifications.play_summary_sound ();
         }
 
-        public override void open (File[] files, string hint) {
+        private void open_files (File[] files) {
             var w = main_window ();
-            w.present ();
             foreach (var f in files) {
                 if (f.get_uri_scheme () == "mailto") w.compose_to (f.get_uri ());
                 else w.open_file.begin (f);
