@@ -11,6 +11,7 @@ namespace Singularity.Apps.Lettere {
         public WebKit.WebView web;
         private LettereApp app;
         private bool ready;
+        public string body_html { get; private set; default = ""; }
         private string? pending_html;
         private Popover mention_popover;
         private ListBox mention_list;
@@ -39,6 +40,9 @@ namespace Singularity.Apps.Lettere {
             content.register_script_message_handler ("edited", null);
             content.script_message_received["edited"].connect (() => changed ());
             content.add_script (new WebKit.UserScript ("document.addEventListener ('input', function () { window.webkit.messageHandlers.edited.postMessage (''); }, true);", WebKit.UserContentInjectedFrames.TOP_FRAME, WebKit.UserScriptInjectionTime.END, null, null));
+            content.register_script_message_handler ("body", null);
+            content.script_message_received["body"].connect ((v) => body_html = v.to_string ());
+            content.add_script (new WebKit.UserScript ("new MutationObserver (function () { window.webkit.messageHandlers.body.postMessage (document.body.innerHTML); }).observe (document.body, { childList: true, subtree: true, characterData: true, attributes: true });", WebKit.UserContentInjectedFrames.TOP_FRAME, WebKit.UserScriptInjectionTime.END, null, null));
             web = (WebKit.WebView) Object.new (typeof (WebKit.WebView), "network-session", new WebKit.NetworkSession.ephemeral (), "settings", ws, "user-content-manager", content);
             web.editable = true;
             web.vexpand = true;
@@ -125,6 +129,7 @@ namespace Singularity.Apps.Lettere {
 
         private void load_empty () {
             ready = false;
+            body_html = "";
             web.load_html ("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>%s</style></head><body></body></html>".printf (BASE_STYLE), "about:blank");
         }
 
@@ -173,6 +178,14 @@ namespace Singularity.Apps.Lettere {
             } catch (Error e) {
                 return "";
             }
+        }
+
+        public async void wait_ready () {
+            while (!ready || pending_html != null || web.is_loading) {
+                Timeout.add (16, wait_ready.callback);
+                yield;
+            }
+            body_html = yield get_html ();
         }
 
         public async string get_text () {

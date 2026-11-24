@@ -64,6 +64,7 @@ namespace Singularity.Apps.Lettere {
         private bool saving_draft { get; set; }
         private bool closing;
         private bool file_view;
+        private File? shown_file;
         private int compose_serial;
         private MessageInfo? lead;
         private int64 outbox_selected;
@@ -2821,6 +2822,7 @@ namespace Singularity.Apps.Lettere {
                 if (MsgFile.is_msg (data)) data = MsgFile.to_mime (data);
                 leave_compose ();
                 file_view = true;
+                shown_file = f;
                 stack.visible_child_name = "mail";
                 selection.unselect_all ();
                 lead = null;
@@ -3079,6 +3081,76 @@ namespace Singularity.Apps.Lettere {
             dlg.open_dialog ();
         }
 
+        public void prepare_move () throws Singularity.Migration.MigrationError {
+            if (saving_draft) throw new Singularity.Migration.MigrationError.UNSUPPORTED (_("Lettere is saving a draft. Move it when the draft is saved."));
+        }
+
+        public string[] migration_files () {
+            if (!file_view || shown_file == null) return {};
+            return { Singularity.Migration.portable_path (shown_file) };
+        }
+
+        public Variant save_migration () {
+            var d = new VariantDict ();
+            d.insert_value ("source", new Variant.string (source));
+            d.insert_value ("query", new Variant.string (query));
+            Variant[] ids = {};
+            var bits = selection.get_selection ();
+            for (uint i = 0; i < bits.get_size (); i++) {
+                var m = model.get_item (bits.get_nth (i)) as MessageInfo;
+                if (m != null) ids += new Variant.int64 (m.id);
+            }
+            d.insert_value ("selected", new Variant.array (VariantType.INT64, ids));
+            d.insert_value ("lead", new Variant.int64 (lead != null ? lead.id : 0));
+            d.insert_value ("file", new Variant.string (file_view && shown_file != null ? Singularity.Migration.portable_path (shown_file) : ""));
+            d.insert_value ("zoom", new Variant.double (reader.zoom));
+            if (composing) d.insert_value ("composer", composer.save_state ());
+            return d.end ();
+        }
+
+        public async void restore_migration (Variant data) {
+            var d = new VariantDict (data);
+            string file = (d.lookup_value ("file", VariantType.STRING) ?? new Variant.string ("")).get_string ();
+            string saved_source = (d.lookup_value ("source", VariantType.STRING) ?? new Variant.string (source)).get_string ();
+            string saved_query = (d.lookup_value ("query", VariantType.STRING) ?? new Variant.string ("")).get_string ();
+            if (file != "") {
+                yield open_file (Singularity.Migration.local_file (file));
+            } else {
+                select_source (saved_source);
+                if (saved_query != query) {
+                    search.text = saved_query;
+                    query = saved_query;
+                    server_hits = null;
+                    rebuild_list ();
+                }
+                var wanted = new Gee.HashSet<int64?> ((v) => int64_hash (v), (a, b) => a == b);
+                var selected = d.lookup_value ("selected", new VariantType ("ax"));
+                if (selected != null) foreach (var id in selected) wanted.add (id.get_int64 ());
+                var sel = new Gtk.Bitset.empty ();
+                for (uint i = 0; i < model.get_n_items (); i++) {
+                    var m = (MessageInfo) model.get_item (i);
+                    if (m.id in wanted) sel.add (i);
+                }
+                selection.set_selection (sel, new Gtk.Bitset.range (0, model.get_n_items ()));
+                int64 lead_id = (d.lookup_value ("lead", VariantType.INT64) ?? new Variant.int64 (0)).get_int64 ();
+                for (uint i = 0; i < model.get_n_items () && sel.get_size () > 1; i++) {
+                    var m = (MessageInfo) model.get_item (i);
+                    if (m.id == lead_id) lead = m;
+                }
+                sync_actions ();
+            }
+            var zoom = d.lookup_value ("zoom", VariantType.DOUBLE);
+            if (zoom != null) reader.zoom = zoom.get_double ();
+            var state = d.lookup_value ("composer", VariantType.VARDICT);
+            if (state != null) {
+                composer.restore_state (state);
+                enter_compose ();
+                yield composer.editor.wait_ready ();
+            } else if (reader_stack.visible_child_name == "reader") {
+                yield reader.wait_rendered ();
+            }
+        }
+
         public void script (string cmd, string arg) {
             switch (cmd) {
                 case "source":
@@ -3205,10 +3277,12 @@ namespace Singularity.Apps.Lettere {
     public class MessageWindow : Singularity.Widgets.Window {
         private LettereApp app;
         private ReaderView reader;
+        public int64 message_id { get; private set; }
 
         public MessageWindow (LettereApp app, MessageInfo m) {
             Object (application: app);
             this.app = app;
+            message_id = m.id;
             set_title (m.subject != "" ? m.subject : _("(No Subject)"));
             set_default_size (860, 760);
             reader = new ReaderView (app);
@@ -3228,6 +3302,10 @@ namespace Singularity.Apps.Lettere {
             var one = new Gee.ArrayList<MessageInfo> ();
             one.add (m);
             reader.show_conversation (one, m, app.syncs[m.account]);
+        }
+
+        public async void wait_rendered () {
+            yield reader.wait_rendered ();
         }
 
         private void main_action (string name) {

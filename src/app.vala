@@ -2,7 +2,7 @@ using Gtk;
 
 namespace Singularity.Apps.Lettere {
 
-    public class LettereApp : Singularity.Application {
+    public class LettereApp : Singularity.Application, Singularity.Migration.Migratable {
         public GLib.Settings settings;
         public Store store;
         private HubBridge? hub = null;
@@ -915,6 +915,56 @@ namespace Singularity.Apps.Lettere {
             var w = main_window ();
             w.present ();
             w.respond_to (id, action);
+        }
+
+        public void prepare_move () throws Singularity.Migration.MigrationError {
+            if (sending.size > 0) throw new Singularity.Migration.MigrationError.UNSUPPORTED (_("Lettere is sending a message. Move it when the message has been sent."));
+            foreach (var w in get_windows ()) {
+                if (w is LettereWindow) ((LettereWindow) w).prepare_move ();
+            }
+        }
+
+        public Variant save_model () {
+            return new VariantDict ().end ();
+        }
+
+        public async void restore_model (Variant model) throws Error {
+        }
+
+        public string window_kind (Gtk.Window w) {
+            if (w is LettereWindow) return "mail";
+            if (w is MessageWindow) return "message";
+            return "";
+        }
+
+        public Variant save_window (Gtk.Window w) {
+            if (w is MessageWindow) return new Variant.int64 (((MessageWindow) w).message_id);
+            return ((LettereWindow) w).save_migration ();
+        }
+
+        public string[] files () {
+            string[] all = {};
+            foreach (var w in get_windows ()) {
+                if (!(w is LettereWindow)) continue;
+                foreach (var f in ((LettereWindow) w).migration_files ()) all += f;
+            }
+            return all;
+        }
+
+        public async Gtk.Window? rebuild_window (string kind, Variant data) throws Error {
+            if (kind == "message") {
+                var m = store.message (data.get_int64 ());
+                if (m == null) return null;
+                var mw = new MessageWindow (this, m);
+                mw.present ();
+                yield mw.wait_rendered ();
+                return mw;
+            }
+            if (kind != "mail") return null;
+            var w = main_window ();
+            w.present ();
+            yield w.restore_migration (data);
+            return w;
         }
 
         public LettereWindow main_window () {

@@ -53,10 +53,18 @@ namespace Singularity.Apps.Lettere {
         private bool file_mode;
         private MimeMessage? file_message;
         private string file_title = "";
+        private int fitting;
+
+        private double zoom_factor = 1.0;
 
         public double zoom {
-            get { return web.zoom_level; }
-            set { web.zoom_level = value.clamp (0.5, 3.0); }
+            get { return zoom_factor; }
+            set {
+                double z = value.clamp (0.5, 3.0);
+                if (z == zoom_factor) return;
+                zoom_factor = z;
+                web.zoom_level = z;
+            }
         }
 
         public ReaderView (LettereApp app) {
@@ -189,7 +197,9 @@ namespace Singularity.Apps.Lettere {
             web.hexpand = true;
             web.decide_policy.connect (on_policy);
             web.load_changed.connect ((ev) => {
-                if (ev == WebKit.LoadEvent.FINISHED) fit ();
+                if (ev != WebKit.LoadEvent.FINISHED) return;
+                if (zoom_factor != 1.0 && web.zoom_level != zoom_factor) web.zoom_level = zoom_factor;
+                fit ();
             });
             web.context_menu.connect ((menu, hit) => {
                 menu.remove_all ();
@@ -478,10 +488,24 @@ namespace Singularity.Apps.Lettere {
                 } catch (Error e) {
                 }
             });
+            fitting++;
             Timeout.add (400, () => {
-                web.evaluate_javascript.begin (fit_script (), -1, "lettere", null, null, null);
+                web.evaluate_javascript.begin (fit_script (), -1, "lettere", null, null, (o, r) => {
+                    try {
+                        web.evaluate_javascript.end (r);
+                    } catch (Error e) {
+                    }
+                    fitting--;
+                });
                 return Source.REMOVE;
             });
+        }
+
+        public async void wait_rendered () {
+            while (body_stack.visible_child_name == "loading" || web.is_loading || fitting > 0) {
+                Timeout.add (16, wait_rendered.callback);
+                yield;
+            }
         }
 
         public void clear () {

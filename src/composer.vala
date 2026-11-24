@@ -1262,6 +1262,87 @@ namespace Singularity.Apps.Lettere {
             return b;
         }
 
+        public Variant save_state () {
+            var d = new VariantDict ();
+            d.insert_value ("mode", new Variant.int32 ((int) mode));
+            d.insert_value ("account", new Variant.string (account != null ? account.id : ""));
+            d.insert_value ("identity", new Variant.string (identity != null ? identity.email : ""));
+            d.insert_value ("to", new Variant.string (to.entry.text));
+            d.insert_value ("cc", new Variant.string (cc.entry.text));
+            d.insert_value ("bcc", new Variant.string (bcc.entry.text));
+            d.insert_value ("show-cc", new Variant.boolean (cc_row.visible));
+            d.insert_value ("subject", new Variant.string (subject.text));
+            d.insert_value ("plain", new Variant.boolean (plain_mode));
+            d.insert_value ("plain-text", new Variant.string (plain.buffer.text));
+            d.insert_value ("html", new Variant.string (editor.body_html));
+            d.insert_value ("importance", new Variant.int32 (importance));
+            d.insert_value ("receipt", new Variant.boolean (request_receipt));
+            d.insert_value ("sign", new Variant.boolean (sign));
+            d.insert_value ("encrypt", new Variant.boolean (encrypt));
+            d.insert_value ("in-reply-to", new Variant.string (in_reply_to));
+            d.insert_value ("references", new Variant.string (references));
+            d.insert_value ("draft", new Variant.int64 (draft != null ? draft.id : 0));
+            Variant[] ids = {};
+            foreach (var m in answering) ids += new Variant.int64 (m.id);
+            d.insert_value ("answering", new Variant.array (VariantType.INT64, ids));
+            var atts = new VariantBuilder (new VariantType ("a(ssss@ay)"));
+            foreach (var a in files) atts.add ("(ssss@ay)", a.filename, a.content_type, a.content_id, a.method, new Variant.from_bytes (VariantType.BYTESTRING, a.data, true));
+            d.insert_value ("attachments", atts.end ());
+            d.insert_value ("dirty", new Variant.boolean (dirty));
+            return d.end ();
+        }
+
+        public void restore_state (Variant data) {
+            var d = new VariantDict (data);
+            Variant? v;
+            v = d.lookup_value ("account", VariantType.STRING);
+            reset (app.accounts.find (v != null ? v.get_string () : ""));
+            if ((v = d.lookup_value ("mode", VariantType.INT32)) != null) mode = (ComposeMode) v.get_int32 ();
+            v = d.lookup_value ("identity", VariantType.STRING);
+            if (v != null && account != null) {
+                foreach (var id in account.identity_list ()) if (id.email.down () == v.get_string ().down ()) identity = id;
+            }
+            if ((v = d.lookup_value ("to", VariantType.STRING)) != null) to.entry.text = v.get_string ();
+            if ((v = d.lookup_value ("cc", VariantType.STRING)) != null) cc.entry.text = v.get_string ();
+            if ((v = d.lookup_value ("bcc", VariantType.STRING)) != null) bcc.entry.text = v.get_string ();
+            if ((v = d.lookup_value ("show-cc", VariantType.BOOLEAN)) != null && v.get_boolean ()) show_cc ();
+            if ((v = d.lookup_value ("subject", VariantType.STRING)) != null) subject.text = v.get_string ();
+            if ((v = d.lookup_value ("in-reply-to", VariantType.STRING)) != null) in_reply_to = v.get_string ();
+            if ((v = d.lookup_value ("references", VariantType.STRING)) != null) references = v.get_string ();
+            if ((v = d.lookup_value ("draft", VariantType.INT64)) != null && v.get_int64 () > 0) draft = app.store.message (v.get_int64 ());
+            var answered = d.lookup_value ("answering", new VariantType ("ax"));
+            if (answered != null) {
+                foreach (var id in answered) {
+                    var msg = app.store.message (id.get_int64 ());
+                    if (msg != null) answering.add (msg);
+                }
+            }
+            var atts = d.lookup_value ("attachments", new VariantType ("a(ssssay)"));
+            if (atts != null) {
+                foreach (var a in atts) {
+                    var at = new OutgoingAttachment (a.get_child_value (0).get_string (), a.get_child_value (1).get_string (), a.get_child_value (4).get_data_as_bytes ());
+                    at.content_id = a.get_child_value (2).get_string ();
+                    at.method = a.get_child_value (3).get_string ();
+                    add_attachment (at);
+                }
+            }
+            refresh_from ();
+            if ((v = d.lookup_value ("plain", VariantType.BOOLEAN)) != null && v.get_boolean ()) {
+                plain_mode = true;
+                body_stack.visible_child_name = "plain";
+            }
+            if ((v = d.lookup_value ("plain-text", VariantType.STRING)) != null) plain.buffer.text = v.get_string ();
+            if ((v = d.lookup_value ("html", VariantType.STRING)) != null) editor.set_html (v.get_string ());
+            if ((v = d.lookup_value ("importance", VariantType.INT32)) != null) importance = v.get_int32 ();
+            if ((v = d.lookup_value ("receipt", VariantType.BOOLEAN)) != null) request_receipt = v.get_boolean ();
+            if ((v = d.lookup_value ("sign", VariantType.BOOLEAN)) != null) sign = v.get_boolean ();
+            if ((v = d.lookup_value ("encrypt", VariantType.BOOLEAN)) != null) encrypt = v.get_boolean ();
+            update_status ();
+            v = d.lookup_value ("dirty", VariantType.BOOLEAN);
+            dirty = v != null && v.get_boolean ();
+            changed_state ();
+        }
+
         public void script_set (string what, string value) {
             switch (what) {
                 case "to":
